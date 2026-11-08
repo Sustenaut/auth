@@ -1,0 +1,186 @@
+# The shared sign-in's proofs on each pull request: the
+# local compose stack started as README.md runs it, from images built with the layer
+# cache main's deploy (auth.yml) fills (the image build runs the extension's unit tests
+# whenever the extension changed), then dev/prove.py, prove_family.py and
+# prove_team.py in a headless Chrome against it, each proof in its own job with its own
+# stack. A pull request that changes only files that cannot reach the images, the realm,
+# the stack or the proofs skips all of that and still passes: the check is required, so
+# it has to report; anything not on the step's list runs the proofs. No secrets: .env,
+# the test PKI and trust list, the issuer keystore and the DNSSEC keys are throwaway,
+# made here by the README's own commands. On failure the proofs' screenshots and the
+# stack's logs are kept as an artifact, one per proof. ssh is disabled and the admin
+# scripts' server name is one that cannot resolve, so no job can ever reach the real
+# server. The last job's name, auth-proofs, is the check to require: it passes only when
+# every proof passed, or when the proofs were skipped because nothing they depend on
+# changed.
+name: auth-proofs
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: auth-proofs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: changes
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.changes.outputs.run }}
+    steps:
+      # A pull request's HEAD is its merge commit: the depth brings the parents to diff.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+
+      # What the merge would change, new and old name of a rename alike. Root *.md only:
+      # themes/ and plugin-patches/ go into the image whole. Nothing else reads these
+      # files: k8s/ is the deploy's, infra/ is Terraform applied from the laptop, the pubkit
+      # and integrations files are ci's, the other workflows are other jobs. A file not
+      # listed, or no files at all, runs the proofs.
+      - name: Do the proofs need to run?
+        id: changes
+        shell: bash
+        run: |
+          changed=$(git diff --name-only --no-renames HEAD^1 HEAD)
+          echo "Changed files:"
+          echo "$changed"
+          run=false
+          [ -n "$changed" ] || run=true
+          while read -r file; do
+            case "$file" in
+              .github/workflows/auth-proofs.yml) run=true ;;
+              k8s/*|infra/*|pubkit|pubkit.json|integrations.json|.github/dependabot.yml|.github/workflows/*) ;;
+              # The backup scripts and their README run from the laptop against the server; no
+              # image, realm, stack or proof uses them. The admin scripts the proofs call stay at
+              # the root, so they keep running the proofs.
+              backups/*) ;;
+              */*) run=true ;;
+              *.md) ;;
+              *) run=true ;;
+            esac
+          done <<< "$changed"
+          [ "$run" = true ] || echo "Skipping the proofs: none of these can affect the images, the realm, the stack or the proofs."
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
+  proof:
+    name: ${{ matrix.script }}
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      # A proof that fails says nothing about the others: let them finish and report.
+      fail-fast: false
+      matrix:
+        include:
+          - script: prove.py
+            proof: wallet
+          - script: prove_family.py
+            proof: family
+            # Runs the realm job again as production does; prove.py does not read it.
+            realm-rerun: >-
+              docker compose run --rm -e IMPORT_REMOTESTATE_ENABLED=true
+              -e IMPORT_MANAGED_CLIENT=full -e IMPORT_FILES_LOCATIONS=/config/family.json realm
+          - script: prove_team.py
+            proof: team
+            # The same for the team realm: registered roles and who holds them survive it.
+            realm-rerun: >-
+              docker compose run --rm -e IMPORT_REMOTESTATE_ENABLED=true
+              -e IMPORT_MANAGED_CLIENT=full -e IMPORT_FILES_LOCATIONS=/config/team.json realm
+    env:
+      # The admin scripts' tunnel target (admin-api.sh, remove-family.sh): never the real server.
+      SUSTENAUT_SERVER: no-real-server.invalid
+    steps:
+      - uses: actions/checkout@v7
+
+      # Nothing in this job may reach the real server: any ssh fails at once, and the
+      # proof with it.
+      - name: No SSH from this job
+        run: |
+          mkdir -p "$RUNNER_TEMP/no-ssh"
+          printf '#!/bin/sh\necho "ssh is disabled in auth-proofs: $*" >&2\nexit 97\n' > "$RUNNER_TEMP/no-ssh/ssh"
+          chmod +x "$RUNNER_TEMP/no-ssh/ssh"
+          echo "$RUNNER_TEMP/no-ssh" >> "$GITHUB_PATH"
+          rm -f ~/.ssh/config
+
+      - uses: astral-sh/setup-uv@v7
+
+      - name: Throwaway .env, test PKI, issuer keystore and DNSSEC keys
+        run: |
+          cp .env.example .env
+          sed -i "s/^KC_DB_PASSWORD=.*/KC_DB_PASSWORD=$(openssl rand -hex 16)/; s/^KC_ADMIN_PASSWORD=.*/KC_ADMIN_PASSWORD=$(openssl rand -hex 16)/; s/^SUSTENAUT_TEST_CLIENT_SECRET=.*/SUSTENAUT_TEST_CLIENT_SECRET=$(openssl rand -hex 16)/" .env
+          uv run dev/pki.py >> .env
+          uv run issuer-keystore.py local >> .env
+          uv run dev/dnskeys.py >> .env
+
+      # auth.yml's scopes, so a pull request reads the cache main's deploy writes; the
+      # tags are the names compose gives these two images.
+      - name: Build the image
+        uses: Sustenaut/pubkit/actions/docker-build@10b9de8d505ab41bf00fdcc6c014c12855ef6a5e # v0.31.1
+        with:
+          tags: sustenaut-auth-keycloak:latest
+          scope: auth
+      - name: Build the realm image
+        uses: Sustenaut/pubkit/actions/docker-build@10b9de8d505ab41bf00fdcc6c014c12855ef6a5e # v0.31.1
+        with:
+          tags: sustenaut-auth-realm:latest
+          scope: auth-realm
+          context: realm
+
+      - name: Start the stack
+        run: |
+          docker compose up -d --no-build
+          docker compose wait realm
+          test "$(docker compose ps -a realm --format '{{.ExitCode}}')" = 0
+
+      - name: Run the proof
+        env:
+          REALM_RERUN: ${{ matrix.realm-rerun }}
+        run: uv run "dev/${{ matrix.script }}"
+
+      - name: Collect the stack's logs
+        if: failure()
+        run: |
+          mkdir -p dev/.pki/logs
+          docker compose ps -a > dev/.pki/logs/ps.txt 2>&1 || true
+          for s in keycloak realm ns1 trustlist hooks mailpit db; do
+            docker compose logs --no-color "$s" > "dev/.pki/logs/$s.log" 2>&1 || true
+          done
+
+      - name: Upload screenshots and logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: auth-proofs-${{ matrix.proof }}
+          path: |
+            dev/.pki/proof*/
+            dev/.pki/logs/
+          if-no-files-found: ignore
+          # dev/.pki is a hidden directory, which upload-artifact leaves out by default.
+          include-hidden-files: true
+
+      - name: Tear the stack down
+        if: always()
+        run: docker compose down -v --remove-orphans
+
+  # The one check a ruleset requires. Skipped proofs pass only when the changes job
+  # decided to skip them; anything else that isn't a success fails, a cancelled or failed
+  # changes job included.
+  auth-proofs:
+    name: auth-proofs
+    if: always()
+    needs: [changes, proof]
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "$RESULTS"
+          echo "$RESULTS" | jq -e '
+            .changes.result == "success" and
+            (.proof.result == "success" or
+             (.proof.result == "skipped" and .changes.outputs.run == "false"))' > /dev/null
+        env: { RESULTS: '${{ toJSON(needs) }}' }

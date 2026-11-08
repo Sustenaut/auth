@@ -1,0 +1,19 @@
+diff --git a/src/main/java/io/github/adorsysgis/keycloak/protocol/oid4vc/oidc/OID4VPLoginActionsService.java b/src/main/java/io/github/adorsysgis/keycloak/protocol/oid4vc/oidc/OID4VPLoginActionsService.java
+index 0a3123b..3698fdd 100644
+--- a/src/main/java/io/github/adorsysgis/keycloak/protocol/oid4vc/oidc/OID4VPLoginActionsService.java
++++ b/src/main/java/io/github/adorsysgis/keycloak/protocol/oid4vc/oidc/OID4VPLoginActionsService.java
+@@ -168,6 +168,14 @@ public class OID4VPLoginActionsService extends LoginActionsService implements Re
+             freshUserSession.setNote(OpenId4VpConstants.PRESENTATION_VERIFIED_NOTE, presentationVerifiedNote);
+         }
+ 
++        // Like the standard browser flow (AuthenticationProcessor#authenticationComplete): run the
++        // realm's required actions, and their triggers, before redirecting back to the client.
++        String nextRequiredAction = AuthenticationManager.nextRequiredAction(session, authSession, request, event);
++        if (nextRequiredAction != null) {
++            logger.debugf("Redirecting to required action '%s' after OID4VP authentication", nextRequiredAction);
++            return AuthenticationManager.redirectToRequiredActions(session, realm, authSession, uriInfo, nextRequiredAction);
++        }
++
+         logger.debugf("Attempting redirection after successful OID4VP authentication");
+         return AuthenticationManager.redirectAfterSuccessfulFlow(
+                 session,

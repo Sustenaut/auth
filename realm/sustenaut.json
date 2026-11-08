@@ -1,0 +1,365 @@
+{
+  "realm": "sustenaut",
+  "displayName": "Sustenaut",
+  "enabled": true,
+  "loginTheme": "sustenaut",
+  "registrationAllowed": false,
+  "resetPasswordAllowed": false,
+  "rememberMe": false,
+  "loginWithEmailAllowed": false,
+  "duplicateEmailsAllowed": true,
+  "editUsernameAllowed": false,
+  "sslRequired": "external",
+  "browserFlow": "wallet browser",
+  "requiredActions": [
+    {
+      "alias": "UPDATE_PASSWORD",
+      "name": "Update Password",
+      "providerId": "UPDATE_PASSWORD",
+      "enabled": false,
+      "defaultAction": false,
+      "priority": 10
+    },
+    {
+      "alias": "CONFIGURE_TOTP",
+      "name": "Configure OTP",
+      "providerId": "CONFIGURE_TOTP",
+      "enabled": false,
+      "defaultAction": false,
+      "priority": 11
+    },
+    {
+      "alias": "VERIFY_EMAIL",
+      "name": "Verify Email",
+      "providerId": "VERIFY_EMAIL",
+      "enabled": false,
+      "defaultAction": false,
+      "priority": 12
+    },
+    {
+      "alias": "UPDATE_PROFILE",
+      "name": "Update Profile",
+      "providerId": "UPDATE_PROFILE",
+      "enabled": false,
+      "defaultAction": false,
+      "priority": 13
+    },
+    {
+      "alias": "webauthn-register",
+      "name": "Webauthn Register",
+      "providerId": "webauthn-register",
+      "enabled": false,
+      "defaultAction": false,
+      "priority": 14
+    },
+    {
+      "alias": "webauthn-register-passwordless",
+      "name": "Webauthn Register Passwordless",
+      "providerId": "webauthn-register-passwordless",
+      "enabled": false,
+      "defaultAction": false,
+      "priority": 15
+    },
+    {
+      "alias": "sustenaut-member-credential",
+      "name": "Sustenaut member credential",
+      "providerId": "sustenaut-member-credential",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 5,
+      "config": {}
+    }
+  ],
+  "authenticationFlows": [
+    {
+      "alias": "wallet browser",
+      "description": "Existing session, else the wallet-only login page",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "auth-cookie",
+          "requirement": "ALTERNATIVE",
+          "priority": 10,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "sustenaut-wallet-page",
+          "requirement": "ALTERNATIVE",
+          "priority": 20,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "alias": "oid4vp auth",
+      "description": "Authenticate via OpenID4VP presentations of identity credentials",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "oid4vp-authenticator",
+          "authenticatorConfig": "oid4vp-auth-config",
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        }
+      ]
+    }
+  ],
+  "authenticatorConfig": [
+    {
+      "alias": "oid4vp-auth-config",
+      "config": {
+        "profiles": "[{\"id\": \"member\", \"description\": \"Sustenaut member credential, issued by this realm into the wallet\", \"displayCta\": {\"en\": \"Sustenaut membership in your wallet\"}, \"credentials\": [{\"id\": \"member\", \"role\": \"primary\", \"format\": \"dc+sd-jwt\", \"credentialTypes\": [\"https://sustenaut.eu/credentials/member/v1\"], \"claims\": [\"sub\"], \"subjectClaim\": \"sub\", \"trust\": [{\"type\": \"self\"}]}]}, {\"id\": \"eu-pid\", \"description\": \"EU Digital Identity Wallet: person identification data (PID)\", \"displayCta\": {\"en\": \"EU ID (first time, or a new wallet)\"}, \"credentials\": [{\"id\": \"pid\", \"role\": \"primary\", \"format\": \"dc+sd-jwt\", \"credentialTypes\": [\"urn:eudi:pid:1\"], \"claims\": [\"personal_administrative_number\", \"given_name\", \"family_name\"], \"subjectClaim\": \"personal_administrative_number\", \"trust\": [{\"type\": \"eudi_pid_trust_list\", \"trustListUrl\": \"$(env:SUSTENAUT_TRUST_LIST_URL)\", \"trustListSigningCertificate\": \"$(env:SUSTENAUT_TRUST_LIST_SIGNING_CERT)\", \"serviceType\": \"http://uri.etsi.org/19602/SvcType/PID/Issuance\", \"issuer\": \"$(env:SUSTENAUT_PID_ISSUER)\"}]}]}]",
+        "clientIdentifierPrefix": "x509_san_dns",
+        "responseMode": "direct_post",
+        "requestUriMethod": "get",
+        "customUrlScheme": "openid4vp://",
+        "requireCryptographicHolderBinding": "true",
+        "holderBindingProofMaxAge": "60",
+        "requireExpClaim": "false",
+        "verifyIssuerClaim": "true",
+        "enforceRevocationStatus": "false",
+        "importUnknownUsers": "true",
+        "importIdentityProviderAlias": "oid4vp-import"
+      }
+    }
+  ],
+  "identityProviders": [
+    {
+      "alias": "oid4vp-import",
+      "displayName": "OpenID4VP Plugin Import",
+      "providerId": "oid4vp-plugin-import",
+      "enabled": true,
+      "hideOnLogin": true,
+      "trustEmail": false,
+      "storeToken": false,
+      "linkOnly": false,
+      "config": {
+        "syncMode": "IMPORT"
+      }
+    }
+  ],
+  "identityProviderMappers": [
+    {
+      "name": "pid-given-name",
+      "identityProviderAlias": "oid4vp-import",
+      "identityProviderMapper": "oid4vp-user-attribute-idp-mapper",
+      "config": {
+        "syncMode": "INHERIT",
+        "claim": "given_name",
+        "user.attribute": "firstName"
+      }
+    },
+    {
+      "name": "pid-family-name",
+      "identityProviderAlias": "oid4vp-import",
+      "identityProviderMapper": "oid4vp-user-attribute-idp-mapper",
+      "config": {
+        "syncMode": "INHERIT",
+        "claim": "family_name",
+        "user.attribute": "lastName"
+      }
+    },
+    {
+      "name": "random-username",
+      "identityProviderAlias": "oid4vp-import",
+      "identityProviderMapper": "sustenaut-random-username",
+      "config": {
+        "syncMode": "INHERIT"
+      }
+    }
+  ],
+  "components": {
+    "org.keycloak.userprofile.UserProfileProvider": [
+      {
+        "providerId": "declarative-user-profile",
+        "subComponents": {},
+        "config": {
+          "kc.user.profile.config": [
+            "{\"unmanagedAttributePolicy\": \"ADMIN_VIEW\", \"attributes\": [{\"name\": \"username\", \"validations\": {\"length\": {\"min\": 3, \"max\": 255}, \"username-prohibited-characters\": {}, \"up-username-not-idn-homograph\": {}}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}, \"multivalued\": false}, {\"name\": \"email\", \"validations\": {\"email\": {}, \"length\": {\"max\": 255}}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}, \"multivalued\": false}, {\"name\": \"firstName\", \"required\": {\"roles\": [\"user\"]}, \"validations\": {\"length\": {\"max\": 255}, \"person-name-prohibited-characters\": {}}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"multivalued\": false}, {\"name\": \"lastName\", \"required\": {\"roles\": [\"user\"]}, \"validations\": {\"length\": {\"max\": 255}, \"person-name-prohibited-characters\": {}}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"multivalued\": false}], \"groups\": [{\"name\": \"user-metadata\", \"displayHeader\": \"User metadata\", \"displayDescription\": \"Attributes, which refer to user metadata\"}]}"
+          ]
+        }
+      }
+    ],
+    "org.keycloak.keys.KeyProvider": [
+      {
+        "name": "rsa-generated",
+        "providerId": "rsa-generated",
+        "subComponents": {},
+        "config": {
+          "priority": [
+            "100"
+          ],
+          "keySize": [
+            "2048"
+          ],
+          "algorithm": [
+            "RS256"
+          ]
+        }
+      },
+      {
+        "name": "ecdsa-generated",
+        "providerId": "ecdsa-generated",
+        "subComponents": {},
+        "config": {
+          "priority": [
+            "90"
+          ],
+          "ecdsaEllipticCurveKey": [
+            "P-256"
+          ],
+          "ecGenerateCertificate": [
+            "true"
+          ]
+        }
+      },
+      {
+        "name": "hmac-generated-hs512",
+        "providerId": "hmac-generated",
+        "subComponents": {},
+        "config": {
+          "priority": [
+            "100"
+          ],
+          "algorithm": [
+            "HS512"
+          ]
+        }
+      },
+      {
+        "name": "aes-generated",
+        "providerId": "aes-generated",
+        "subComponents": {},
+        "config": {
+          "priority": [
+            "100"
+          ]
+        }
+      },
+      {
+        "name": "member-issuer",
+        "providerId": "java-keystore",
+        "subComponents": {},
+        "config": {
+          "priority": [
+            "200"
+          ],
+          "algorithm": [
+            "ES256"
+          ],
+          "keystore": [
+            "member-issuer.p12"
+          ],
+          "keystoreType": [
+            "PKCS12"
+          ],
+          "keystorePassword": [
+            "$(env:SUSTENAUT_ISSUER_KEYSTORE_PASSWORD)"
+          ],
+          "keyAlias": [
+            "member-issuer"
+          ],
+          "keyPassword": [
+            "$(env:SUSTENAUT_ISSUER_KEYSTORE_PASSWORD)"
+          ],
+          "active": [
+            "true"
+          ],
+          "enabled": [
+            "true"
+          ]
+        }
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "account",
+      "enabled": false
+    },
+    {
+      "clientId": "account-console",
+      "enabled": false
+    },
+    {
+      "clientId": "sustenaut-wallet",
+      "name": "EU Digital Identity Wallets (credential issuance)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "attributes": {
+        "oid4vci.enabled": "true"
+      },
+      "optionalClientScopes": [
+        "sustenaut-member"
+      ],
+      "defaultClientScopes": []
+    },
+    {
+      "clientId": "review",
+      "name": "Sustenaut reviews (review.sustenaut.eu)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "$(env:SUSTENAUT_REVIEW_CLIENT_SECRET)",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "https://review.sustenaut.eu/auth/callback"
+      ],
+      "webOrigins": [
+        "https://review.sustenaut.eu"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "https://review.sustenaut.eu/"
+      }
+    }
+  ],
+  "verifiableCredentialsEnabled": true,
+  "clientScopes": [
+    {
+      "name": "sustenaut-member",
+      "description": "Sustenaut member credential (OpenID4VCI): the account id, for signing in with the wallet",
+      "protocol": "oid4vc",
+      "attributes": {
+        "vc.credential_configuration_id": "sustenaut-member",
+        "vc.verifiable_credential_type": "https://sustenaut.eu/credentials/member/v1",
+        "vc.format": "dc+sd-jwt",
+        "vc.credential_signing_alg": "ES256",
+        "vc.cryptographic_binding_methods_supported": "jwk",
+        "vc.credential_build_config.sd_jwt.visible_claims": "id,iat,nbf,exp,jti,sub",
+        "vc.expiry_in_seconds": "31536000",
+        "vc.display": "[{\"name\": \"Sustenaut membership\", \"locale\": \"en\"}]",
+        "include.in.token.scope": "true",
+        "vc.binding_required": "true",
+        "vc.binding_required_proof_types": "jwt"
+      },
+      "protocolMappers": [
+        {
+          "name": "account-id",
+          "protocol": "oid4vc",
+          "protocolMapper": "oid4vc-subject-id-mapper",
+          "config": {
+            "claim.name": "sub",
+            "userAttribute": "id"
+          }
+        }
+      ]
+    }
+  ]
+}

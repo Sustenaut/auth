@@ -1,0 +1,49 @@
+diff --git a/src/main/java/io/github/adorsysgis/keycloak/protocol/oid4vc/oid4vp/service/AuthorizationResponseService.java b/src/main/java/io/github/adorsysgis/keycloak/protocol/oid4vc/oid4vp/service/AuthorizationResponseService.java
+index c162727..10892f0 100644
+--- a/src/main/java/io/github/adorsysgis/keycloak/protocol/oid4vc/oid4vp/service/AuthorizationResponseService.java
++++ b/src/main/java/io/github/adorsysgis/keycloak/protocol/oid4vc/oid4vp/service/AuthorizationResponseService.java
+@@ -60,6 +60,7 @@ public class AuthorizationResponseService {
+      * a redeemed authorization code belongs to the OIDC session resuming the login.
+      */
+     public static final String PARENT_AUTH_SESSION_ID = "oid4vp.parent_auth_session_id";
++    public static final String PROFILE_ID_NOTE = "oid4vp.profile_id";
+ 
+     private final KeycloakSession session;
+     private final DcqlCredentialCapabilities dcqlCapabilities;
+@@ -322,6 +323,11 @@ public class AuthorizationResponseService {
+         if (authContext.getParentAuthSessionId() != null) {
+             clientSession.setNote(PARENT_AUTH_SESSION_ID, authContext.getParentAuthSessionId());
+         }
++
++        // Which authentication profile the wallet answered, for the parent login's required actions.
++        if (authContext.getProfileId() != null) {
++            clientSession.setNote(PROFILE_ID_NOTE, authContext.getProfileId());
++        }
+     }
+ 
+     /**
+diff --git a/src/main/java/io/github/adorsysgis/keycloak/protocol/oid4vc/oidc/OID4VPLoginActionsService.java b/src/main/java/io/github/adorsysgis/keycloak/protocol/oid4vc/oidc/OID4VPLoginActionsService.java
+index 3698fdd..00b273c 100644
+--- a/src/main/java/io/github/adorsysgis/keycloak/protocol/oid4vc/oidc/OID4VPLoginActionsService.java
++++ b/src/main/java/io/github/adorsysgis/keycloak/protocol/oid4vc/oidc/OID4VPLoginActionsService.java
+@@ -5,6 +5,7 @@ import static io.github.adorsysgis.keycloak.protocol.oid4vc.oidc.freemarker.OID4
+ import static io.github.adorsysgis.keycloak.protocol.oid4vc.oidc.freemarker.OID4VPUserAuthBean.PARAM_LOGIN_METHOD;
+ 
+ import io.github.adorsysgis.keycloak.protocol.oid4vc.oid4vp.OID4VPUserAuthEndpointBase;
++import io.github.adorsysgis.keycloak.protocol.oid4vc.oid4vp.service.AuthorizationResponseService;
+ import io.github.adorsysgis.keycloak.protocol.oid4vc.oid4vp.utils.OpenId4VpConstants;
+ import jakarta.ws.rs.Consumes;
+ import jakarta.ws.rs.FormParam;
+@@ -168,6 +169,12 @@ public class OID4VPLoginActionsService extends LoginActionsService implements Re
+             freshUserSession.setNote(OpenId4VpConstants.PRESENTATION_VERIFIED_NOTE, presentationVerifiedNote);
+         }
+ 
++        // Tell the parent login which authentication profile the wallet answered.
++        String profileId = result.getClientSession().getNote(AuthorizationResponseService.PROFILE_ID_NOTE);
++        if (profileId != null) {
++            authSession.setAuthNote(AuthorizationResponseService.PROFILE_ID_NOTE, profileId);
++        }
++
+         // Like the standard browser flow (AuthenticationProcessor#authenticationComplete): run the
+         // realm's required actions, and their triggers, before redirecting back to the client.
+         String nextRequiredAction = AuthenticationManager.nextRequiredAction(session, authSession, request, event);

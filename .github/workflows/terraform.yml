@@ -1,0 +1,30 @@
+# Applies infra/ from main, as the account terraform-auth, which
+# Sustenaut/shared-infra's infra/terraform-ci.tf makes and grants only what this
+# stack manages: the buckets sustenaut-auth-*, their two accounts, the role
+# walChunkDelete and this stack's state. The stack needs no secret, so terraform
+# runs plainly. The environment terraform takes main only; nothing runs for a
+# pull request, so plan one from a checkout before merging it (terraform -chdir=infra
+# plan). Nothing runs until the variable TERRAFORM_CI is on. A plan that deletes
+# anything is applied only from a pull request labelled terraform-destroy. Brought
+# up by scripts/go-live-terraform-ci.sh; pubkit's README, "Terraform from CI".
+#
+# Written by hand: `pubkit sync` writes pr.yml and main.yml, not this.
+name: terraform
+
+on:
+  push: { branches: [main] }
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: read
+
+jobs:
+  terraform:
+    uses: Sustenaut/pubkit/.github/workflows/terraform.yml@10b9de8d505ab41bf00fdcc6c014c12855ef6a5e # v0.31.1
+    with:
+      terraform-dir: infra
+      workload-identity-provider: projects/948171295184/locations/global/workloadIdentityPools/github/providers/github-terraform
+      service-account: terraform-auth@sustenaut.iam.gserviceaccount.com
+      secrets: false

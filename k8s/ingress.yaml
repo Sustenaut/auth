@@ -1,0 +1,63 @@
+# auth.sustenaut.eu through the server's shared Traefik, with a Let's Encrypt
+# certificate (resolver "letsencrypt", set up in shared-infra/infra/cloud-init).
+#
+# Public: only what people and wallets need, i.e. the sustenaut realm (sign-in,
+# wallet endpoints, tokens), the family realm (invited friends' sign-in for
+# its tenants' sites: login pages, passkey setup links from the invitation emails,
+# tokens), the team realm (the same for the team's sites, e.g.
+# opportunity.sustenaut.eu), theme resources and the .well-known metadata. The
+# admin console (/admin) and the master realm (/realms/master) are not routed
+# here at all; they are reachable over the tailnet only (keycloak-admin in
+# keycloak.yaml).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: keycloak
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: auth.sustenaut.eu
+      http:
+        paths:
+          - path: /realms/sustenaut
+            pathType: Prefix
+            backend:
+              service:
+                name: keycloak
+                port:
+                  name: http
+          - path: /realms/family
+            pathType: Prefix
+            backend:
+              service:
+                name: keycloak
+                port:
+                  name: http
+          - path: /realms/team
+            pathType: Prefix
+            backend:
+              service:
+                name: keycloak
+                port:
+                  name: http
+          - path: /resources
+            pathType: Prefix
+            backend:
+              service:
+                name: keycloak
+                port:
+                  name: http
+          - path: /.well-known
+            pathType: Prefix
+            backend:
+              service:
+                name: keycloak
+                port:
+                  name: http
+  tls:
+    - hosts:
+        - auth.sustenaut.eu

@@ -1,0 +1,129 @@
+{
+  "uses": [
+    {
+      "plugin": "bitwarden.secrets",
+      "paths": [
+        "with-secrets.json"
+      ],
+      "mode": "required"
+    },
+    {
+      "plugin": "cloudflare.pages",
+      "paths": [
+        "dev/prove_team.py"
+      ],
+      "mode": "required"
+    },
+    {
+      "plugin": "eudi.wallet",
+      "paths": [
+        ".github/workflows/auth.yml",
+        "Dockerfile",
+        "dev/",
+        "extension/src/main/java/eu/sustenaut/auth/MemberCredentialAction.java",
+        "realm/sustenaut.json",
+        "themes/sustenaut/login/"
+      ],
+      "mode": "required"
+    },
+    {
+      "plugin": "github.actions-oidc",
+      "paths": [
+        ".github/workflows/terraform.yml"
+      ],
+      "mode": "required"
+    },
+    {
+      "plugin": "github.ghcr",
+      "paths": [
+        ".github/workflows/auth.yml",
+        "k8s/"
+      ],
+      "mode": "required"
+    },
+    {
+      "plugin": "github.repo-ops",
+      "paths": [
+        "scripts/go-live-terraform-ci.sh"
+      ],
+      "mode": "required"
+    },
+    {
+      "plugin": "google.cloud",
+      "paths": [
+        "k8s/backup.yaml",
+        "scripts/go-live-terraform-ci.sh"
+      ],
+      "mode": "required"
+    },
+    {
+      "plugin": "letsencrypt.certs",
+      "paths": [
+        "k8s/ingress.yaml"
+      ],
+      "mode": "required"
+    },
+    {
+      "plugin": "mailbox.smtp",
+      "paths": [
+        "k8s/realm-job.yaml",
+        "realm/family.json",
+        "realm/team.json"
+      ],
+      "mode": "required"
+    },
+    {
+      "plugin": "sonarcloud.scan",
+      "paths": [
+        ".github/workflows/main.yml",
+        ".github/workflows/pr.yml"
+      ],
+      "mode": "required"
+    },
+    {
+      "plugin": "tailscale.tailnet",
+      "paths": [
+        ".github/workflows/auth.yml"
+      ],
+      "mode": "required"
+    }
+  ],
+  "own_hosts": [
+    "sustenaut.eu"
+  ],
+  "other_hosts": [
+    {
+      "host": "repo1.maven.org",
+      "reason": "A build-time download of a pinned jar; no account or key"
+    }
+  ],
+  "other_secrets": [
+    {
+      "name": "SUSTENAUT_DEPLOY_SSH_KEY",
+      "reason": "An SSH key to our own server"
+    }
+  ],
+  "exclude": [
+    {
+      "path": "extension/src/test/**",
+      "reason": "Tests with made-up domains"
+    },
+    {
+      "path": "edge-gate/gate.test.js",
+      "reason": "Tests with made-up domains"
+    }
+  ],
+  "terraform": [
+    {
+      "dir": "infra",
+      "plugins": [
+        "terraform.google"
+      ],
+      "runs": [
+        "laptop",
+        "actions"
+      ],
+      "mode": "required"
+    }
+  ]
+}

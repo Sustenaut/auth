@@ -1,0 +1,29 @@
+# The auth app on the Sustenaut k3s server (shared-infra/infra/hetzner.tf), namespace auth.
+# Rendered by .github/workflows/auth.yml with the images it just built
+# (kustomize edit set image) and applied by sustenaut-deploy on the server.
+# The Secret auth-secrets is not here: push-secrets.sh puts it in.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: auth
+resources:
+  - service-accounts.yaml
+  - postgres.yaml
+  - keycloak.yaml
+  - ingress.yaml
+  - realm-job.yaml
+  - backup.yaml
+configMapGenerator:
+  # The PID-provider trust list the wallet sign-in accepts (realm/sustenaut.json).
+  - name: trust-list
+    envs:
+      - trust-list.env
+images:
+  - name: ghcr.io/sustenaut/sustenaut-auth
+    newTag: unset
+  - name: ghcr.io/sustenaut/sustenaut-auth-realm
+    newTag: unset
+  # Sustenaut/pg-backup's release: PostgreSQL 16.14 with WAL-G. Move it with backups/pg-backup's
+  # version and infra/'s module ref.
+  - name: ghcr.io/sustenaut/pg-backup
+    newTag: 0.1.0-pg16
+    digest: sha256:1cdc1121515180f8e744fc36a343b546e89b77cb28bacaaddb1f3666f4048b09

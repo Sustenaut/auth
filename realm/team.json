@@ -1,0 +1,312 @@
+{
+  "realm": "team",
+  "displayName": "Sustenaut team",
+  "enabled": true,
+  "loginTheme": "team",
+  "emailTheme": "team",
+  "registrationAllowed": false,
+  "registrationEmailAsUsername": true,
+  "resetPasswordAllowed": false,
+  "rememberMe": false,
+  "verifyEmail": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "editUsernameAllowed": false,
+  "sslRequired": "external",
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "failureFactor": 10,
+  "browserFlow": "team browser",
+  "eventsListeners": ["jboss-logging", "sustenaut-passkey-notice", "sustenaut-sign-in"],
+  "adminEventsEnabled": true,
+  "adminEventsDetailsEnabled": true,
+  "roles": {
+    "realm": [
+      {
+        "name": "controller",
+        "description": "Holds every service role, and alone may change who has which (/realms/team/access)."
+      }
+    ]
+  },
+  "attributes": {
+    "sustenaut.access.enabled": "true",
+    "sustenaut.access.registrant": "$(env:TEAM_REGISTRANT:-admin@sustenaut.eu)",
+    "adminEventsExpiration": "31536000",
+    "sustenaut.appRegistration.removalSeconds": "$(env:TEAM_REMOVAL_SECONDS:-86400)",
+    "sustenaut.appRegistration.domains": "sustenaut.eu",
+    "sustenaut.appRegistration.checkSeconds": "$(env:TEAM_APP_CHECK_SECONDS:-604800)",
+    "sustenaut.appRegistration.retrySeconds": "$(env:TEAM_APP_RETRY_SECONDS:-3600)",
+    "sustenaut.appRegistration.alertEmail": "$(env:TEAM_APP_ALERT_EMAIL)",
+    "sustenaut.appRegistration.dnsServer": "$(env:TEAM_REGISTRATION_DNS:-)",
+    "sustenaut.appRegistration.trustAnchors": "$(env:TEAM_DNSSEC_TRUST_ANCHORS:-)"
+  },
+  "actionTokenGeneratedByAdminLifespan": 604800,
+  "webAuthnPolicyPasswordlessRpEntityName": "Sustenaut team",
+  "webAuthnPolicyPasswordlessSignatureAlgorithms": [
+    "ES256",
+    "RS256"
+  ],
+  "webAuthnPolicyPasswordlessAttestationConveyancePreference": "none",
+  "webAuthnPolicyPasswordlessAuthenticatorAttachment": "not specified",
+  "webAuthnPolicyPasswordlessRequireResidentKey": "Yes",
+  "webAuthnPolicyPasswordlessUserVerificationRequirement": "required",
+  "webAuthnPolicyPasswordlessAvoidSameAuthenticatorRegister": false,
+  "webAuthnPolicyPasswordlessPasskeysEnabled": true,
+  "smtpServer": {
+    "host": "$(env:TEAM_SMTP_HOST:-smtp.mailbox.org)",
+    "port": "$(env:TEAM_SMTP_PORT:-587)",
+    "starttls": "$(env:TEAM_SMTP_STARTTLS:-true)",
+    "ssl": "false",
+    "auth": "$(env:TEAM_SMTP_AUTH:-true)",
+    "user": "$(env:MAILBOX_SMTP_LOGIN:-)",
+    "password": "$(env:MAILBOX_SMTP_PASSWORD:-)",
+    "from": "$(env:TEAM_MAIL_FROM)",
+    "fromDisplayName": "Sustenaut team"
+  },
+  "requiredActions": [
+    {
+      "alias": "webauthn-register-passwordless",
+      "name": "Webauthn Register Passwordless",
+      "providerId": "webauthn-register-passwordless",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 10
+    },
+    {
+      "alias": "UPDATE_PASSWORD",
+      "name": "Update Password",
+      "providerId": "UPDATE_PASSWORD",
+      "enabled": false,
+      "defaultAction": false,
+      "priority": 20
+    },
+    {
+      "alias": "CONFIGURE_TOTP",
+      "name": "Configure OTP",
+      "providerId": "CONFIGURE_TOTP",
+      "enabled": false,
+      "defaultAction": false,
+      "priority": 21
+    },
+    {
+      "alias": "VERIFY_EMAIL",
+      "name": "Verify Email",
+      "providerId": "VERIFY_EMAIL",
+      "enabled": false,
+      "defaultAction": false,
+      "priority": 22
+    },
+    {
+      "alias": "UPDATE_PROFILE",
+      "name": "Update Profile",
+      "providerId": "UPDATE_PROFILE",
+      "enabled": false,
+      "defaultAction": false,
+      "priority": 23
+    },
+    {
+      "alias": "VERIFY_PROFILE",
+      "name": "Verify Profile",
+      "providerId": "VERIFY_PROFILE",
+      "enabled": false,
+      "defaultAction": false,
+      "priority": 24
+    },
+    {
+      "alias": "webauthn-register",
+      "name": "Webauthn Register",
+      "providerId": "webauthn-register",
+      "enabled": false,
+      "defaultAction": false,
+      "priority": 25
+    }
+  ],
+  "authenticationFlows": [
+    {
+      "alias": "team browser",
+      "description": "Existing session, else a passkey or a code sent by email; never a password",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "auth-cookie",
+          "requirement": "ALTERNATIVE",
+          "priority": 10,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "family-sign-in",
+          "requirement": "ALTERNATIVE",
+          "priority": 20,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        }
+      ]
+    }
+  ],
+  "components": {
+    "org.keycloak.services.clientregistration.policy.ClientRegistrationPolicy": [
+      {
+        "name": "App client rules",
+        "providerId": "family-client-rules",
+        "subType": "anonymous",
+        "subComponents": {},
+        "config": {}
+      },
+      {
+        "name": "Allowed Client Scopes",
+        "providerId": "allowed-client-templates",
+        "subType": "anonymous",
+        "subComponents": {},
+        "config": {
+          "allow-default-scopes": [
+            "true"
+          ]
+        }
+      },
+      {
+        "name": "Full Scope Disabled",
+        "providerId": "scope",
+        "subType": "anonymous",
+        "subComponents": {},
+        "config": {}
+      },
+      {
+        "name": "Max Clients Limit",
+        "providerId": "max-clients",
+        "subType": "anonymous",
+        "subComponents": {},
+        "config": {
+          "max-clients": [
+            "20"
+          ]
+        }
+      },
+      {
+        "name": "App client rules",
+        "providerId": "family-client-rules",
+        "subType": "authenticated",
+        "subComponents": {},
+        "config": {}
+      },
+      {
+        "name": "Allowed Client Scopes",
+        "providerId": "allowed-client-templates",
+        "subType": "authenticated",
+        "subComponents": {},
+        "config": {
+          "allow-default-scopes": [
+            "true"
+          ]
+        }
+      },
+      {
+        "name": "Full Scope Disabled",
+        "providerId": "scope",
+        "subType": "authenticated",
+        "subComponents": {},
+        "config": {}
+      },
+      {
+        "name": "Max Clients Limit",
+        "providerId": "max-clients",
+        "subType": "authenticated",
+        "subComponents": {},
+        "config": {
+          "max-clients": [
+            "20"
+          ]
+        }
+      },
+      {
+        "name": "Trusted Hosts",
+        "providerId": "trusted-hosts",
+        "subType": "anonymous",
+        "subComponents": {},
+        "config": {
+          "trusted-hosts": [
+            "sustenaut.eu",
+            "*.sustenaut.eu"
+          ],
+          "host-sending-registration-request-must-match": [
+            "false"
+          ],
+          "client-uris-must-match": [
+            "true"
+          ]
+        }
+      }
+    ],
+    "org.keycloak.userprofile.UserProfileProvider": [
+      {
+        "providerId": "declarative-user-profile",
+        "subComponents": {},
+        "config": {
+          "kc.user.profile.config": [
+            "{\"unmanagedAttributePolicy\": \"ADMIN_EDIT\", \"attributes\": [{\"name\": \"username\", \"validations\": {\"length\": {\"min\": 3, \"max\": 255}, \"username-prohibited-characters\": {}, \"up-username-not-idn-homograph\": {}}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}, \"multivalued\": false}, {\"name\": \"email\", \"required\": {\"roles\": [\"admin\", \"user\"]}, \"validations\": {\"email\": {}, \"length\": {\"max\": 255}}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}, \"multivalued\": false}, {\"name\": \"firstName\", \"validations\": {\"length\": {\"max\": 255}, \"person-name-prohibited-characters\": {}}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}, \"multivalued\": false}, {\"name\": \"lastName\", \"validations\": {\"length\": {\"max\": 255}, \"person-name-prohibited-characters\": {}}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}, \"multivalued\": false}], \"groups\": [{\"name\": \"user-metadata\", \"displayHeader\": \"User metadata\", \"displayDescription\": \"Attributes, which refer to user metadata\"}]}"
+          ]
+        }
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "team-access",
+      "name": "Team access",
+      "description": "Signs a controller in to the page at /realms/team/access (AccessPage). Public; the page reads the session, not the code. No other grant.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "fullScopeAllowed": false,
+      "rootUrl": "${authBaseUrl}",
+      "baseUrl": "/realms/team/access",
+      "redirectUris": ["/realms/team/access"],
+      "webOrigins": [],
+      "defaultClientScopes": ["basic"],
+      "optionalClientScopes": [],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "+"
+      }
+    },
+    {
+      "clientId": "account",
+      "enabled": false
+    },
+    {
+      "clientId": "account-console",
+      "enabled": false
+    },
+    {
+      "clientId": "app-registration",
+      "name": "Registering a domain for sign-in (device flow)",
+      "description": "Public client a domain's registrant signs in with (OAuth device flow, e.g. from opportunity-site/register-client.sh) to call /realms/team/app-registration. No redirects, no other grant.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "fullScopeAllowed": false,
+      "redirectUris": [],
+      "webOrigins": [],
+      "defaultClientScopes": [
+        "basic",
+        "email"
+      ],
+      "optionalClientScopes": [],
+      "attributes": {
+        "oauth2.device.authorization.grant.enabled": "true",
+        "oauth2.device.code.lifespan": "600",
+        "oauth2.device.polling.interval": "5"
+      }
+    }
+  ]
+}

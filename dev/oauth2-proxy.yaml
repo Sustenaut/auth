@@ -1,0 +1,95 @@
+# A copy of opportunity-site's k8s/oauth2-proxy.yaml, which dev/prove_team.py
+# runs oauth2-proxy with. Keep it in step with that file when either changes.
+# oauth2-proxy signs people in with the team realm at auth.sustenaut.eu (Keycloak:
+# a passkey or an emailed code), as the client sustenaut.eu registered for its team
+# sites (register-client.sh puts its id and secret in the Secret opportunity-oidc).
+# It lets in only people with the role opportunity, from the token's access claim (the
+# team access page at auth.sustenaut.eu/realms/team/access is the one list), and refreshes
+# every 4 minutes, which also keeps the access token valid (it lasts 5).
+# It hands the app the account's verified email in X-Forwarded-Email and that token in
+# X-Forwarded-Access-Token, replacing whatever the browser sent; the app asks on each
+# request whether the person's access has changed. Open without sign-in: /healthz, and /storage-in-use.json, which
+# storage.sustenaut.eu's nightly clean-up reads.
+apiVersion: v1
+kind: Service
+metadata:
+  name: oauth2-proxy
+spec:
+  selector:
+    app: oauth2-proxy
+  ports:
+    - name: http
+      port: 4180
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oauth2-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: oauth2-proxy
+  template:
+    metadata:
+      labels:
+        app: oauth2-proxy
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+      containers:
+        - name: oauth2-proxy
+          image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.5
+          args:
+            - --provider=keycloak-oidc
+            - --oidc-issuer-url=https://auth.sustenaut.eu/realms/team
+            - --code-challenge-method=S256
+            - --scope=openid email profile
+            - --http-address=0.0.0.0:4180
+            - --upstream=http://app:8080/
+            - --redirect-url=https://opportunity.sustenaut.eu/oauth2/callback
+            - --reverse-proxy=true
+            - --email-domain=*
+            - --oidc-groups-claim=access
+            - --allowed-group=opportunity
+            - --pass-access-token=true
+            - --cookie-refresh=4m
+            - --pass-user-headers=true
+            - --cookie-name=_opportunity
+            - --cookie-secure=true
+            - --cookie-samesite=lax
+            - --skip-provider-button=true
+            - --skip-auth-route=GET=^/healthz$
+            - --skip-auth-route=GET=^/storage-in-use\.json$
+            - --silence-ping-logging=true
+          env:
+            - name: OAUTH2_PROXY_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: opportunity-oidc
+                  key: client-id
+            - name: OAUTH2_PROXY_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: opportunity-oidc
+                  key: client-secret
+            - name: OAUTH2_PROXY_COOKIE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: opportunity-secrets
+                  key: cookie-secret
+          ports:
+            - name: http
+              containerPort: 4180
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: http
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 20m
+              memory: 32Mi
+            limits:
+              memory: 128Mi

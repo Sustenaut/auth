@@ -1,0 +1,234 @@
+/* The family (and team) sign-in pages in the Sustenaut look, the same as the recipe site
+   (the recipe host's app/style.css): the @sustenaut/ui tokens (ui/src/theme.css, from
+   brand/palette.json) under the same names, set on top of keycloak.v2's PatternFly 5.
+   PatternFly's own variables are pointed at the tokens, so its buttons, fields and alerts
+   follow; the rules after them only change shapes PatternFly has no variable for.
+   Dark mode: keycloak.v2 adds pf-v5-theme-dark to <html> when the device prefers dark.
+   Fonts: Nunito and Nunito Sans, variable builds from Fontsource, served from this theme
+   (fonts/, OFL.txt) so the page loads nothing from other sites. */
+
+@font-face {
+  font-family: "Nunito Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 1000;
+  src: url("../fonts/nunito-latin-wght-normal.woff2") format("woff2-variations");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Nunito Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 1000;
+  src: url("../fonts/nunito-latin-ext-wght-normal.woff2") format("woff2-variations");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Nunito Sans Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 1000;
+  font-stretch: 75% 125%;
+  src: url("../fonts/nunito-sans-latin-opsz-normal.woff2") format("woff2-variations");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Nunito Sans Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 1000;
+  font-stretch: 75% 125%;
+  src: url("../fonts/nunito-sans-latin-ext-opsz-normal.woff2") format("woff2-variations");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+:root.login-pf {
+  color-scheme: light;
+  --ground: #f3efe2; /* cream */
+  --surface: #fffdf6;
+  --sunken: #ede6d4;
+  --ink: #17110c; /* soil */
+  --muted: #5d4d3f;
+  --rule: #ddd4bf;
+  --rule-strong: #c9bea6;
+  --link: #1f6b35; /* canopy */
+  --primary: #1f6b35;
+  --primary-hover: #185a2c;
+  --on-primary: #fffdf6;
+  --accent: #5bc236; /* sprout */
+  --accent-soft: #ddf0d2;
+  --warn: #8a5a00;
+  --warn-soft: #f6e6c2; /* seed, softened */
+  --bad: #9b2c1f;
+  --bad-soft: #f6d9d3;
+  --font-sans: "Nunito Sans Variable", "Nunito Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Nunito Variable", "Nunito", system-ui, sans-serif;
+  --radius-control: 10px;
+  --radius-panel: 14px;
+}
+:root.login-pf.pf-v5-theme-dark {
+  color-scheme: dark;
+  --ground: #17110c;
+  --surface: #221911;
+  --sunken: #2b2017;
+  --ink: #f3efe2;
+  --muted: #b9ab95;
+  --rule: #3a2a1e; /* loam */
+  --rule-strong: #54402f;
+  --link: #a6de58; /* leaf */
+  --primary: #5bc236;
+  --primary-hover: #a6de58;
+  --on-primary: #17110c;
+  --accent-soft: #24361a;
+  --warn: #e8a317; /* seed */
+  --warn-soft: #33260f;
+  --bad: #f08a7a;
+  --bad-soft: #3a1c17;
+}
+
+/* PatternFly's globals, on the tokens. */
+:root.login-pf, :root.login-pf.pf-v5-theme-dark {
+  --pf-v5-global--FontFamily--text: var(--font-sans);
+  --pf-v5-global--FontFamily--heading: var(--font-display);
+  --pf-v5-global--FontFamily--sans-serif: var(--font-sans);
+  --pf-v5-global--Color--100: var(--ink);
+  --pf-v5-global--Color--200: var(--muted);
+  --pf-v5-global--BackgroundColor--100: var(--surface);
+  --pf-v5-global--BackgroundColor--200: var(--sunken);
+  --pf-v5-global--BorderColor--100: var(--rule);
+  --pf-v5-global--BorderColor--200: var(--rule-strong);
+  --pf-v5-global--BorderColor--300: var(--rule-strong);
+  --pf-v5-global--primary-color--100: var(--primary);
+  --pf-v5-global--primary-color--200: var(--primary-hover);
+  --pf-v5-global--link--Color: var(--link);
+  --pf-v5-global--link--Color--hover: var(--link);
+  --pf-v5-global--danger-color--100: var(--bad);
+  --pf-v5-global--danger-color--200: var(--bad);
+  --pf-v5-global--warning-color--100: var(--warn);
+  --pf-v5-global--success-color--100: var(--primary);
+  --pf-v5-global--active-color--100: var(--primary);
+  --pf-v5-global--BorderRadius--sm: var(--radius-control);
+  --keycloak-card-top-color: transparent;
+}
+
+/* The page: cream ground instead of Keycloak's dark polygons; the mark and the realm's name
+   in Nunito above the panel, like the recipe site's header. */
+.login-pf body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  line-height: 1.55;
+}
+.login-pf .pf-v5-c-login__header { padding-block-end: 1.25rem; color: var(--ink); }
+#kc-header-wrapper {
+  display: flex; align-items: center; justify-content: center; gap: 0.6rem;
+  font-family: var(--font-display); font-weight: 800; font-size: 1.5rem;
+  letter-spacing: 0; text-transform: none; line-height: 1.2;
+  color: var(--ink) !important; /* keycloak.v2 sets white with !important */
+}
+#kc-header-wrapper::before {
+  content: ""; flex: none; width: 2.25rem; height: 2.25rem;
+  background: url("../img/sustenaut-mark.svg") center / contain no-repeat;
+}
+
+/* The panel, like @sustenaut/ui's Panel and the recipe cards. */
+.login-pf .pf-v5-c-login__main {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-panel);
+  box-shadow: none;
+  overflow: hidden;
+}
+.login-pf .pf-v5-c-login__main-header { border-top: 0; }
+.login-pf .pf-v5-c-login__main-header .pf-v5-c-title,
+.login-pf #kc-page-title {
+  font-family: var(--font-display); font-weight: 800; line-height: 1.2; color: var(--ink);
+}
+.login-pf .pf-v5-c-login__main-footer-band { border-color: var(--rule); color: var(--muted); }
+.login-pf .pf-v5-c-login__main-body p { margin-block-end: 0.75rem; }
+.login-pf a { color: var(--link); text-decoration-color: var(--accent); text-underline-offset: 3px; }
+
+/* Fields, like @sustenaut/ui's Field: one rounded border, green on focus. */
+.login-pf .pf-v5-c-form__label-text { font-weight: 600; color: var(--ink); }
+.login-pf .pf-v5-c-form-control {
+  --pf-v5-c-form-control--BackgroundColor: var(--surface);
+  --pf-v5-c-form-control--before--BorderBottomWidth: var(--pf-v5-global--BorderWidth--sm);
+  --pf-v5-c-form-control--before--BorderBottomColor: var(--rule-strong);
+  --pf-v5-c-form-control--after--BorderBottomWidth: 0;
+  --pf-v5-c-form-control--focus--after--BorderBottomWidth: 0;
+  --pf-v5-c-form-control--m-error--after--BorderBottomWidth: 0;
+  border-radius: var(--radius-control);
+  min-height: 2.75rem;
+  color: var(--ink);
+}
+.login-pf .pf-v5-c-form-control::before,
+.login-pf .pf-v5-c-form-control::after { border-radius: var(--radius-control); }
+.login-pf .pf-v5-c-form-control:hover { --pf-v5-c-form-control--before--BorderTopColor: var(--primary); --pf-v5-c-form-control--before--BorderRightColor: var(--primary); --pf-v5-c-form-control--before--BorderBottomColor: var(--primary); --pf-v5-c-form-control--before--BorderLeftColor: var(--primary); }
+.login-pf .pf-v5-c-form-control:focus-within {
+  --pf-v5-c-form-control--before--BorderTopColor: var(--primary);
+  --pf-v5-c-form-control--before--BorderRightColor: var(--primary);
+  --pf-v5-c-form-control--before--BorderBottomColor: var(--primary);
+  --pf-v5-c-form-control--before--BorderLeftColor: var(--primary);
+  outline: 2px solid var(--accent-soft);
+}
+.login-pf .pf-v5-c-form-control.pf-m-error {
+  --pf-v5-c-form-control--before--BorderTopColor: var(--bad);
+  --pf-v5-c-form-control--before--BorderRightColor: var(--bad);
+  --pf-v5-c-form-control--before--BorderBottomColor: var(--bad);
+  --pf-v5-c-form-control--before--BorderLeftColor: var(--bad);
+}
+.login-pf .pf-v5-c-form-control > input,
+.login-pf .pf-v5-c-form-control > select { font-family: var(--font-sans); font-size: 1rem; outline: none; }
+
+/* Buttons, like @sustenaut/ui's Button: bold, rounded, green primary, outlined secondary. */
+.login-pf .pf-v5-c-button {
+  --pf-v5-c-button--BorderRadius: var(--radius-control);
+  --pf-v5-c-button--FontWeight: 700;
+  min-height: 2.75rem;
+  font-family: var(--font-sans);
+}
+.login-pf .pf-v5-c-button.pf-m-primary {
+  --pf-v5-c-button--m-primary--Color: var(--on-primary);
+  --pf-v5-c-button--m-primary--hover--Color: var(--on-primary);
+  --pf-v5-c-button--m-primary--focus--Color: var(--on-primary);
+  --pf-v5-c-button--m-primary--active--Color: var(--on-primary);
+  --pf-v5-c-button--m-primary--BackgroundColor: var(--primary);
+  --pf-v5-c-button--m-primary--hover--BackgroundColor: var(--primary-hover);
+  --pf-v5-c-button--m-primary--focus--BackgroundColor: var(--primary-hover);
+  --pf-v5-c-button--m-primary--active--BackgroundColor: var(--primary-hover);
+}
+.login-pf .pf-v5-c-button.pf-m-secondary {
+  --pf-v5-c-button--m-secondary--Color: var(--ink);
+  --pf-v5-c-button--m-secondary--hover--Color: var(--ink);
+  --pf-v5-c-button--m-secondary--focus--Color: var(--ink);
+  --pf-v5-c-button--m-secondary--BackgroundColor: var(--surface);
+  --pf-v5-c-button--m-secondary--hover--BackgroundColor: var(--surface);
+  --pf-v5-c-button--m-secondary--focus--BackgroundColor: var(--surface);
+  --pf-v5-c-button--m-secondary--after--BorderColor: var(--rule-strong);
+  --pf-v5-c-button--m-secondary--hover--after--BorderColor: var(--primary);
+  --pf-v5-c-button--m-secondary--focus--after--BorderColor: var(--primary);
+  --pf-v5-c-button--after--BorderWidth: 1px;
+  --pf-v5-c-button--hover--after--BorderWidth: 1px;
+}
+.login-pf .pf-v5-c-button.pf-m-link {
+  --pf-v5-c-button--m-link--Color: var(--link);
+  --pf-v5-c-button--m-link--hover--Color: var(--link);
+  --pf-v5-c-button--m-link--focus--Color: var(--link);
+}
+
+/* Messages: the bad, warn and accent soft colours, in a rounded box. */
+.login-pf .pf-v5-c-alert {
+  --pf-v5-c-alert--BoxShadow: none;
+  --pf-v5-c-alert--BorderTopWidth: 0;
+  --pf-v5-c-alert--BackgroundColor: var(--sunken);
+  --pf-v5-c-alert__title--Color: var(--ink);
+  --pf-v5-c-alert__icon--Color: var(--primary);
+  border-radius: var(--radius-control);
+}
+.login-pf .pf-v5-c-alert.pf-m-danger { --pf-v5-c-alert--BackgroundColor: var(--bad-soft); --pf-v5-c-alert__title--Color: var(--bad); --pf-v5-c-alert__icon--Color: var(--bad); }
+.login-pf .pf-v5-c-alert.pf-m-warning { --pf-v5-c-alert--BackgroundColor: var(--warn-soft); --pf-v5-c-alert__title--Color: var(--warn); --pf-v5-c-alert__icon--Color: var(--warn); }
+.login-pf .pf-v5-c-alert.pf-m-success { --pf-v5-c-alert--BackgroundColor: var(--accent-soft); }
+.login-pf .pf-v5-c-helper-text__item.pf-m-error { --pf-v5-c-helper-text__item--m-error--Color: var(--bad); color: var(--bad); }
+
+/* The link's code page shows the code in large digits. */
+#family-link-code { font-family: var(--font-display); color: var(--ink); }

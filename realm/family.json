@@ -1,0 +1,283 @@
+{
+  "realm": "family",
+  "displayName": "auth.sustenaut.eu",
+  "enabled": true,
+  "loginTheme": "family",
+  "emailTheme": "family",
+  "registrationAllowed": false,
+  "registrationEmailAsUsername": true,
+  "resetPasswordAllowed": false,
+  "rememberMe": true,
+  "ssoSessionIdleTimeout": 2592000,
+  "ssoSessionMaxLifespan": 2592000,
+  "ssoSessionIdleTimeoutRememberMe": 2592000,
+  "ssoSessionMaxLifespanRememberMe": 2592000,
+  "verifyEmail": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "editUsernameAllowed": false,
+  "sslRequired": "external",
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "failureFactor": 10,
+  "browserFlow": "family browser",
+  "eventsListeners": ["jboss-logging", "sustenaut-passkey-notice", "sustenaut-sign-in"],
+  "attributes": {
+    "sustenaut.appRegistration.domains": "$(env:FAMILY_TENANT_DOMAIN) sustenaut.eu",
+    "sustenaut.appRegistration.checkSeconds": "$(env:FAMILY_APP_CHECK_SECONDS:-604800)",
+    "sustenaut.appRegistration.retrySeconds": "$(env:FAMILY_APP_RETRY_SECONDS:-3600)",
+    "sustenaut.appRegistration.alertEmail": "$(env:FAMILY_APP_ALERT_EMAIL)",
+    "sustenaut.appRegistration.dnsServer": "$(env:FAMILY_REGISTRATION_DNS:-)",
+    "sustenaut.appRegistration.trustAnchors": "$(env:FAMILY_DNSSEC_TRUST_ANCHORS:-)",
+    "sustenaut.appRegistration.removalSeconds": "$(env:FAMILY_REMOVAL_SECONDS:-86400)"
+  },
+  "actionTokenGeneratedByAdminLifespan": 604800,
+  "webAuthnPolicyPasswordlessRpEntityName": "auth.sustenaut.eu",
+  "webAuthnPolicyPasswordlessSignatureAlgorithms": ["ES256", "RS256"],
+  "webAuthnPolicyPasswordlessAttestationConveyancePreference": "none",
+  "webAuthnPolicyPasswordlessAuthenticatorAttachment": "not specified",
+  "webAuthnPolicyPasswordlessRequireResidentKey": "Yes",
+  "webAuthnPolicyPasswordlessUserVerificationRequirement": "required",
+  "webAuthnPolicyPasswordlessAvoidSameAuthenticatorRegister": false,
+  "webAuthnPolicyPasswordlessPasskeysEnabled": true,
+  "smtpServer": {
+    "host": "$(env:FAMILY_SMTP_HOST:-smtp.mailbox.org)",
+    "port": "$(env:FAMILY_SMTP_PORT:-587)",
+    "starttls": "$(env:FAMILY_SMTP_STARTTLS:-true)",
+    "ssl": "false",
+    "auth": "$(env:FAMILY_SMTP_AUTH:-true)",
+    "user": "$(env:MAILBOX_SMTP_LOGIN:-)",
+    "password": "$(env:MAILBOX_SMTP_PASSWORD:-)",
+    "from": "$(env:FAMILY_MAIL_FROM)",
+    "fromDisplayName": "auth.sustenaut.eu"
+  },
+  "requiredActions": [
+    {
+      "alias": "webauthn-register-passwordless",
+      "name": "Webauthn Register Passwordless",
+      "providerId": "webauthn-register-passwordless",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 10
+    },
+    {
+      "alias": "family-invite-sign-in",
+      "name": "Family: the invitation signs in",
+      "providerId": "family-invite-sign-in",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 11
+    },
+    {
+      "alias": "family-passkey-offer",
+      "name": "Family: offer a passkey after an emailed sign-in",
+      "providerId": "family-passkey-offer",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 12
+    },
+    {
+      "alias": "sustenaut-leave",
+      "name": "Leave a domain (remove my access)",
+      "providerId": "sustenaut-leave",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 13
+    },
+    {
+      "alias": "UPDATE_PASSWORD",
+      "name": "Update Password",
+      "providerId": "UPDATE_PASSWORD",
+      "enabled": false,
+      "defaultAction": false,
+      "priority": 20
+    },
+    {
+      "alias": "CONFIGURE_TOTP",
+      "name": "Configure OTP",
+      "providerId": "CONFIGURE_TOTP",
+      "enabled": false,
+      "defaultAction": false,
+      "priority": 21
+    },
+    {
+      "alias": "VERIFY_EMAIL",
+      "name": "Verify Email",
+      "providerId": "VERIFY_EMAIL",
+      "enabled": false,
+      "defaultAction": false,
+      "priority": 22
+    },
+    {
+      "alias": "UPDATE_PROFILE",
+      "name": "Update Profile",
+      "providerId": "UPDATE_PROFILE",
+      "enabled": false,
+      "defaultAction": false,
+      "priority": 23
+    },
+    {
+      "alias": "VERIFY_PROFILE",
+      "name": "Verify Profile",
+      "providerId": "VERIFY_PROFILE",
+      "enabled": false,
+      "defaultAction": false,
+      "priority": 24
+    },
+    {
+      "alias": "webauthn-register",
+      "name": "Webauthn Register",
+      "providerId": "webauthn-register",
+      "enabled": false,
+      "defaultAction": false,
+      "priority": 25
+    }
+  ],
+  "authenticationFlows": [
+    {
+      "alias": "family browser",
+      "description": "Existing session, else an emailed sign-in link or code (or a passkey); never a password",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "auth-cookie",
+          "requirement": "ALTERNATIVE",
+          "priority": 10,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "family-sign-in",
+          "requirement": "ALTERNATIVE",
+          "priority": 20,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        }
+      ]
+    }
+  ],
+  "components": {
+    "org.keycloak.services.clientregistration.policy.ClientRegistrationPolicy": [
+      {
+        "name": "Family client rules",
+        "providerId": "family-client-rules",
+        "subType": "anonymous",
+        "subComponents": {},
+        "config": {}
+      },
+      {
+        "name": "Allowed Client Scopes",
+        "providerId": "allowed-client-templates",
+        "subType": "anonymous",
+        "subComponents": {},
+        "config": {
+          "allow-default-scopes": ["true"]
+        }
+      },
+      {
+        "name": "Full Scope Disabled",
+        "providerId": "scope",
+        "subType": "anonymous",
+        "subComponents": {},
+        "config": {}
+      },
+      {
+        "name": "Max Clients Limit",
+        "providerId": "max-clients",
+        "subType": "anonymous",
+        "subComponents": {},
+        "config": {
+          "max-clients": ["20"]
+        }
+      },
+      {
+        "name": "Family client rules",
+        "providerId": "family-client-rules",
+        "subType": "authenticated",
+        "subComponents": {},
+        "config": {}
+      },
+      {
+        "name": "Allowed Client Scopes",
+        "providerId": "allowed-client-templates",
+        "subType": "authenticated",
+        "subComponents": {},
+        "config": {
+          "allow-default-scopes": ["true"]
+        }
+      },
+      {
+        "name": "Full Scope Disabled",
+        "providerId": "scope",
+        "subType": "authenticated",
+        "subComponents": {},
+        "config": {}
+      },
+      {
+        "name": "Max Clients Limit",
+        "providerId": "max-clients",
+        "subType": "authenticated",
+        "subComponents": {},
+        "config": {
+          "max-clients": ["20"]
+        }
+      },
+      {
+        "name": "Trusted Hosts",
+        "providerId": "trusted-hosts",
+        "subType": "anonymous",
+        "subComponents": {},
+        "config": {
+          "trusted-hosts": ["$(env:FAMILY_TENANT_DOMAIN)", "*.$(env:FAMILY_TENANT_DOMAIN)", "sustenaut.eu", "*.sustenaut.eu"],
+          "host-sending-registration-request-must-match": ["false"],
+          "client-uris-must-match": ["true"]
+        }
+      }
+    ],
+    "org.keycloak.userprofile.UserProfileProvider": [
+      {
+        "providerId": "declarative-user-profile",
+        "subComponents": {},
+        "config": {
+          "kc.user.profile.config": [
+            "{\"unmanagedAttributePolicy\": \"ADMIN_EDIT\", \"attributes\": [{\"name\": \"username\", \"validations\": {\"length\": {\"min\": 3, \"max\": 255}, \"username-prohibited-characters\": {}, \"up-username-not-idn-homograph\": {}}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}, \"multivalued\": false}, {\"name\": \"email\", \"required\": {\"roles\": [\"admin\", \"user\"]}, \"validations\": {\"email\": {}, \"length\": {\"max\": 255}}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}, \"multivalued\": false}, {\"name\": \"firstName\", \"validations\": {\"length\": {\"max\": 255}, \"person-name-prohibited-characters\": {}}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}, \"multivalued\": false}, {\"name\": \"lastName\", \"validations\": {\"length\": {\"max\": 255}, \"person-name-prohibited-characters\": {}}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}, \"multivalued\": false}], \"groups\": [{\"name\": \"user-metadata\", \"displayHeader\": \"User metadata\", \"displayDescription\": \"Attributes, which refer to user metadata\"}]}"
+          ]
+        }
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "account",
+      "enabled": false
+    },
+    {
+      "clientId": "account-console",
+      "enabled": false
+    },
+    {
+      "clientId": "app-registration",
+      "name": "Registering a domain for sign-in (device flow)",
+      "description": "Public client a domain's registrant signs in with (OAuth device flow, e.g. from a tenant's setup script) to call /realms/family/app-registration. No redirects, no other grant.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "fullScopeAllowed": false,
+      "redirectUris": [],
+      "webOrigins": [],
+      "defaultClientScopes": ["basic", "email"],
+      "optionalClientScopes": [],
+      "attributes": {
+        "oauth2.device.authorization.grant.enabled": "true",
+        "oauth2.device.code.lifespan": "600",
+        "oauth2.device.polling.interval": "5"
+      }
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "realm": "master",
+  "attributes": {
+    "frontendUrl": "$(env:SUSTENAUT_ADMIN_URL)"
+  }
+}

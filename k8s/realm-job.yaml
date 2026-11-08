@@ -1,0 +1,87 @@
+# The realm as code (realm/), applied with keycloak-config-cli after
+# every deploy: sustenaut-deploy deletes and re-creates jobs labelled run-on-deploy.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: auth-realm
+  labels:
+    sustenaut.eu/run-on-deploy: "true"
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: realm
+          image: ghcr.io/sustenaut/sustenaut-auth-realm
+          envFrom:
+            - configMapRef:
+                name: trust-list
+            # Deploy configuration, from the repository's Actions variables (auth.yml):
+            # FAMILY_TENANT_DOMAIN.
+            - configMapRef:
+                name: auth-deploy
+          env:
+            - name: KEYCLOAK_URL
+              value: http://keycloak:8080
+            # The master realm (admin sign-in) answers at the admin console's
+            # address, the SSH tunnel (keycloak.yaml), not on auth.sustenaut.eu.
+            - name: SUSTENAUT_ADMIN_URL
+              value: http://localhost:8180
+            - name: KEYCLOAK_GRANTTYPE
+              value: client_credentials
+            - name: KEYCLOAK_CLIENTID
+              value: sustenaut-config
+            - name: KEYCLOAK_CLIENTSECRET
+              valueFrom:
+                secretKeyRef:
+                  name: auth-secrets
+                  key: config-client-secret
+            - name: KEYCLOAK_AVAILABILITYCHECK_ENABLED
+              value: "true"
+            - name: KEYCLOAK_AVAILABILITYCHECK_TIMEOUT
+              value: 300s
+            - name: SUSTENAUT_REVIEW_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: auth-secrets
+                  key: review-client-secret
+            # The family realm (realm/family.json): the mailbox.org account its
+            # invitations and sign-in codes are sent with (port 587, STARTTLS:
+            # Hetzner blocks outgoing 25 and 465). Its apps register their own
+            # clients, approved by DNS records, so no client secret is here.
+            - name: MAILBOX_SMTP_LOGIN
+              valueFrom:
+                secretKeyRef:
+                  name: auth-secrets
+                  key: mailbox-smtp-login
+            - name: MAILBOX_SMTP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: auth-secrets
+                  key: mailbox-smtp-password
+            # The service's own sender (an alias of that mailbox.org account); emails
+            # for a registered domain carry its name as the sender's name.
+            - name: FAMILY_MAIL_FROM
+              value: noreply@sustenaut.eu
+            # Where Keycloak reports an app switched off (or on again) because its
+            # DNS approval record went away (or came back).
+            - name: FAMILY_APP_ALERT_EMAIL
+              value: alerts@sustenaut.eu
+            # The team realm (realm/team.json): the same mailbox.org account and
+            # sender, alerts to the same address.
+            - name: TEAM_MAIL_FROM
+              value: noreply@sustenaut.eu
+            - name: TEAM_APP_ALERT_EMAIL
+              value: alerts@sustenaut.eu
+            - name: SUSTENAUT_ISSUER_KEYSTORE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: auth-secrets
+                  key: issuer-keystore-password
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 512Mi

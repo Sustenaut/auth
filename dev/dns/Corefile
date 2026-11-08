@@ -1,0 +1,25 @@
+# Local only: the authoritative nameserver (ns1 in compose.yaml) for example.net and
+# sustenaut.eu, holding the records app registration checks (_sustenaut-auth.<domain>
+# TXT "sa1=<token>"). dev/prove_family.py and dev/prove_team.py write the zones into
+# zones/ns1 (not in git) while they run; CoreDNS picks changes up within a second. Both are
+# signed (DNSSEC, the keys from dev/dnskeys.py): the family realm trusts example.net's key as
+# its anchor here, the team realm sustenaut.eu's. One block per zone: CoreDNS takes one
+# dnssec per block. ns1 is the resolver Keycloak asks (dnsServer, compose.yaml).
+example.net {
+    auto {
+        directory /etc/coredns/zones (example\.net)\.zone {1}
+        reload 1s
+    }
+    dnssec {
+        key file /etc/coredns/keys/Kexample.net
+    }
+}
+sustenaut.eu {
+    auto {
+        directory /etc/coredns/zones (sustenaut\.eu)\.zone {1}
+        reload 1s
+    }
+    dnssec {
+        key file /etc/coredns/keys/Ksustenaut.eu
+    }
+}

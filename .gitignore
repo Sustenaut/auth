@@ -1,0 +1,6 @@
+.env
+dev/.pki/
+extension/target/
+dev/dns/zones/*/*.zone
+dev/edge-gate/.dev.vars
+dev/edge-gate/.wrangler/

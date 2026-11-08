@@ -1,0 +1,62 @@
+# Nightly dump of Keycloak's database to the Google Cloud Storage bucket
+# sustenaut-auth-backups (infra/main.tf: in Finland, kept 30 days, written by an
+# account that can only create objects). Restore: README.md.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup
+spec:
+  schedule: "17 2 * * *"
+  timeZone: Etc/UTC
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: Never
+          volumes:
+            - name: dump
+              emptyDir: {}
+            - name: gcs-key
+              secret:
+                secretName: auth-secrets
+                items:
+                  - key: backup-gcs-key
+                    path: key.json
+          initContainers:
+            - name: dump
+              image: docker.io/library/postgres:16.14
+              command:
+                - sh
+                - -c
+                - pg_dump -h postgres -U keycloak -d keycloak -Fc -f "/dump/keycloak-$(date -u +%Y%m%dT%H%M%SZ).dump"
+              env:
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: auth-secrets
+                      key: db-password
+              volumeMounts:
+                - name: dump
+                  mountPath: /dump
+          containers:
+            - name: upload
+              image: gcr.io/google.com/cloudsdktool/google-cloud-cli:587.0.0-slim
+              command:
+                - sh
+                - -c
+                - >-
+                  gcloud auth activate-service-account --key-file=/key/key.json --quiet &&
+                  gcloud storage cp /dump/*.dump gs://sustenaut-auth-backups/
+              volumeMounts:
+                - name: dump
+                  mountPath: /dump
+                - name: gcs-key
+                  mountPath: /key
+                  readOnly: true
+              resources:
+                limits:
+                  memory: 512Mi

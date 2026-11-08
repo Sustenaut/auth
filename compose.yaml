@@ -1,0 +1,185 @@
+# Local development only: Keycloak (start-dev) + PostgreSQL 16 + a local HTTPS
+# host serving the test PID-provider trust list, mailpit catching the family and team
+# realms' emails, a CoreDNS nameserver for their app-approval records, and keycloak-config-cli
+# applying the realms (realm/), as the auth-realm job does in production. Never deploy
+# this file.
+#
+#   uv run dev/pki.py >> .env     # once: test PKI and trust list (see README)
+#   podman compose up --build     # or: docker compose up --build
+#
+# Passwords come from .env (git-ignored); copy .env.example to start.
+
+name: sustenaut-auth
+
+services:
+  db:
+    image: docker.io/library/postgres:16
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${KC_DB_PASSWORD:?set KC_DB_PASSWORD in .env}
+    volumes:
+      - db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 5s
+      retries: 20
+
+  trustlist:
+    image: docker.io/library/python:3.13-slim
+    command: ["python", "-I", "/srv/serve_trustlist.py"]
+    volumes:
+      - ./dev/serve_trustlist.py:/srv/serve_trustlist.py:ro,Z
+      - ./dev/.pki:/pki:ro,Z
+
+  # Stands in for a domain's notify_url, https://hooks.example.net/... (dev/hooks.py): takes
+  # the first-sign-in notices Keycloak sends and shows them to prove_family.py on
+  # http://localhost:8035 (AUTH_HOOKS). Nothing leaves the machine.
+  hooks:
+    image: docker.io/library/python:3.13-slim
+    command: ["python", "-I", "/srv/hooks.py"]
+    volumes:
+      - ./dev/hooks.py:/srv/hooks.py:ro,Z
+      - ./dev/.pki:/pki:ro,Z
+    ports:
+      - "127.0.0.1:8035:8000"
+    networks:
+      default:
+        aliases: [hooks.example.net]
+
+  # Catches the family realm's emails (invitations, sign-in codes): web UI and API
+  # on http://localhost:8025. Nothing leaves the machine.
+  mailpit:
+    image: docker.io/axllent/mailpit:v1.31.6
+    ports:
+      - "127.0.0.1:8025:8025"
+
+  # The nameserver for example.net and sustenaut.eu (both signed) (dev/dns/), in place
+  # of the real ones, serving the records that approve domains registering for sign-in
+  # in the family and team realms. A fixed address: the zones name it as their nameserver.
+  ns1:
+    image: docker.io/coredns/coredns:1.14.7
+    user: "0"
+    command: ["-conf", "/etc/coredns/Corefile"]
+    volumes:
+      - ./dev/dns/Corefile:/etc/coredns/Corefile:ro,Z
+      - ./dev/dns/zones/ns1:/etc/coredns/zones:ro,z
+      - ./dev/.pki/dns:/etc/coredns/keys:ro,z
+    networks:
+      default:
+        ipv4_address: 10.89.77.11
+  keycloak:
+    build: .
+    command: ["start-dev"]
+    environment:
+      KC_DB_URL: jdbc:postgresql://db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KC_DB_PASSWORD}
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD:?set KC_ADMIN_PASSWORD in .env}
+      KC_BOOTSTRAP_ADMIN_CLIENT_ID: sustenaut-config
+      KC_BOOTSTRAP_ADMIN_CLIENT_SECRET: ${KC_ADMIN_PASSWORD}
+      KC_HOSTNAME: http://localhost:8080
+      # As on the server: the admin console has its own address (there, an SSH
+      # tunnel over the tailnet; here, a second port).
+      KC_HOSTNAME_ADMIN: http://localhost:8180
+      KC_TRUSTSTORE_PATHS: /opt/keycloak/conf/dev-ca.pem
+      KC_LOG_LEVEL: INFO,io.github.adorsysgis:debug,eu.sustenaut:debug
+      SUSTENAUT_ISSUER_KEYSTORE_B64: ${SUSTENAUT_ISSUER_KEYSTORE_B64:?run issuer-keystore.py}
+      # How often the app-registration re-check wakes up (default: hourly).
+      SUSTENAUT_APP_CHECK_TICK_SECONDS: "2"
+      # Accepted app-registration requests per source address per hour (default 10).
+      SUSTENAUT_APP_REQUESTS_PER_HOUR: "1000"
+      # The proofs sign the same people in many times: per-address code limits raised
+      # (FamilySignInForm; 10 emails and 10 wrong codes an hour for real).
+      SUSTENAUT_CODE_EMAILS_PER_HOUR: "1000"
+      SUSTENAUT_CODE_EMAILS_PER_DAY: "1000"
+      SUSTENAUT_WRONG_CODES_PER_HOUR: "1000"
+      SUSTENAUT_WRONG_CODES_PER_DAY: "1000"
+      # The key of the team realm's access-state hash.
+      SUSTENAUT_ACCESS_HASH_KEY: ${KC_ADMIN_PASSWORD}
+    volumes:
+      - ./dev/.pki/ca.pem:/opt/keycloak/conf/dev-ca.pem:ro,Z
+    ports:
+      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:8180:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      trustlist:
+        condition: service_started
+      hooks:
+        condition: service_started
+      mailpit:
+        condition: service_started
+      ns1:
+        condition: service_started
+
+  # Applies realm/*.json, then exits; run again (podman compose up realm) after editing the realm.
+  realm:
+    build: realm
+    environment:
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_GRANTTYPE: client_credentials
+      KEYCLOAK_CLIENTID: sustenaut-config
+      KEYCLOAK_CLIENTSECRET: ${KC_ADMIN_PASSWORD}
+      KEYCLOAK_AVAILABILITYCHECK_ENABLED: "true"
+      KEYCLOAK_AVAILABILITYCHECK_TIMEOUT: 180s
+      IMPORT_FILES_LOCATIONS: /config/sustenaut.json,/config/family.json,/config/team.json,/config-dev/dev-clients.json
+      SUSTENAUT_ADMIN_URL: http://localhost:8180
+      # Two files for one realm: neither import may delete what the other made.
+      IMPORT_REMOTESTATE_ENABLED: "false"
+      IMPORT_MANAGED_CLIENT: no-delete
+      SUSTENAUT_TRUST_LIST_URL: https://trustlist:8443/pid-providers.jwt
+      SUSTENAUT_TRUST_LIST_SIGNING_CERT: ${SUSTENAUT_TRUST_LIST_SIGNING_CERT:?run dev/pki.py}
+      SUSTENAUT_PID_ISSUER: ${SUSTENAUT_PID_ISSUER:?run dev/pki.py}
+      SUSTENAUT_ISSUER_KEYSTORE_PASSWORD: ${SUSTENAUT_ISSUER_KEYSTORE_PASSWORD:?run issuer-keystore.py}
+      SUSTENAUT_TEST_CLIENT_SECRET: ${SUSTENAUT_TEST_CLIENT_SECRET:?set SUSTENAUT_TEST_CLIENT_SECRET in .env}
+      # The production review client is in the realm too; locally it gets the test secret.
+      SUSTENAUT_REVIEW_CLIENT_SECRET: ${SUSTENAUT_TEST_CLIENT_SECRET}
+      # The family realm: its mail goes to mailpit (no TLS, no login) instead of
+      # mailbox.org; domains registering for sign-in are approved by ns1's records,
+      # checked again every 5 seconds instead of weekly (a miss: again after 3, not an
+      # hour); alerts go to mailpit too.
+      FAMILY_REGISTRATION_DNS: 10.89.77.11:53
+      FAMILY_APP_CHECK_SECONDS: "5"
+      FAMILY_APP_RETRY_SECONDS: "3"
+      # Accounts removed 30 days ago are deleted once a day; here every 5 seconds.
+      FAMILY_REMOVAL_SECONDS: "5"
+      # ns1 signs example.net with dev/dnskeys.py's key; Keycloak validates from that key
+      # here instead of the root's (production: empty, the IANA root keys).
+      FAMILY_DNSSEC_TRUST_ANCHORS: ${FAMILY_DNSSEC_TRUST_ANCHORS:?run dev/dnskeys.py}
+      FAMILY_APP_ALERT_EMAIL: alerts@sustenaut.eu
+      FAMILY_TENANT_DOMAIN: example.net  # the family tenant registering for sign-in (deploy: the FAMILY_TENANT_DOMAIN Actions variable)
+      FAMILY_SMTP_HOST: mailpit
+      FAMILY_SMTP_PORT: "1025"
+      FAMILY_SMTP_STARTTLS: "false"
+      FAMILY_SMTP_AUTH: "false"
+      FAMILY_MAIL_FROM: noreply@sustenaut.eu
+      # The team realm, the same way: sustenaut.eu's records at ns1, validated from
+      # dev/dnskeys.py's sustenaut.eu key.
+      TEAM_REGISTRATION_DNS: 10.89.77.11:53
+      TEAM_APP_CHECK_SECONDS: "5"
+      TEAM_APP_RETRY_SECONDS: "3"
+      TEAM_REMOVAL_SECONDS: "5"
+      TEAM_DNSSEC_TRUST_ANCHORS: ${TEAM_DNSSEC_TRUST_ANCHORS:?run dev/dnskeys.py}
+      TEAM_APP_ALERT_EMAIL: alerts@sustenaut.eu
+      TEAM_SMTP_HOST: mailpit
+      TEAM_SMTP_PORT: "1025"
+      TEAM_SMTP_STARTTLS: "false"
+      TEAM_SMTP_AUTH: "false"
+      TEAM_MAIL_FROM: noreply@sustenaut.eu
+    volumes:
+      - ./realm/dev-clients.json:/config-dev/dev-clients.json:ro,Z
+    depends_on:
+      keycloak:
+        condition: service_started
+
+volumes:
+  db:
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 10.89.77.0/24

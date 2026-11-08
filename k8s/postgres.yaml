@@ -1,0 +1,169 @@
+# Keycloak's own database (accounts, wallet links, sessions, the realm). Only
+# Keycloak uses it. Its volume is on the server's data volume (k3s local-path,
+# under /mnt/data/k3s), so it survives a server rebuild. Two layers of backups go off-box:
+# - every change: PostgreSQL archives each finished write-ahead log segment with WAL-G, at
+#   least once a minute while anything changes, and the wal-g container takes a base backup
+#   each night, into gs://sustenaut-auth-wal (infra/main.tf), encrypted, kept 14 days, so the
+#   database can be restored to any moment in that window (./backups/pg-backup restore --to);
+# - nightly dumps (backup.yaml), kept 30 days, which need neither WAL-G nor this version.
+# The image, the archive's Terraform and the tools are Sustenaut/pg-backup's (backups/README.md).
+# The Secret auth-wal (the bucket's key, WAL-G's encryption key) is `./backups/pg-backup setup-secrets`'s.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+spec:
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: ghcr.io/sustenaut/pg-backup # PostgreSQL 16.14 and WAL-G; its release is in kustomization.yaml
+          securityContext:
+            runAsUser: 999
+            runAsGroup: 999
+            allowPrivilegeEscalation: false
+          args:
+            - postgres
+            - -c
+            - archive_mode=on
+            - -c
+            - archive_timeout=60
+            - -c
+            - archive_command=/usr/local/bin/wal-g wal-push %p
+          env:
+            - name: POSTGRES_DB
+              value: keycloak
+            - name: POSTGRES_USER
+              value: keycloak
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: auth-secrets
+                  key: db-password
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            - name: WALG_GS_PREFIX
+              value: gs://sustenaut-auth-wal/keycloak
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: /var/run/secrets/wal/gcs-key.json
+            - name: WALG_LIBSODIUM_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: auth-wal
+                  key: libsodium-key
+            - name: WALG_LIBSODIUM_KEY_TRANSFORM
+              value: base64
+            # The bucket's account may not replace an object: a segment PostgreSQL archives again
+            # is checked, and skipped if it is already there.
+            - name: WALG_PREVENT_WAL_OVERWRITE
+              value: "true"
+            - name: WALG_COMPRESSION_METHOD
+              value: brotli
+          ports:
+            - containerPort: 5432
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "keycloak", "-d", "keycloak"]
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: wal-key
+              mountPath: /var/run/secrets/wal
+              readOnly: true
+        # Base backups, nightly, and a line of JSON every 5 minutes on how the archive is doing
+        # (pg-backup's walg-loop). It reads the data directory, so it runs as PostgreSQL's user.
+        - name: wal-g
+          image: ghcr.io/sustenaut/pg-backup
+          command: ["/usr/local/bin/walg-loop"]
+          securityContext:
+            runAsUser: 999
+            runAsGroup: 999
+          env:
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            - name: PGHOST
+              value: 127.0.0.1
+            - name: PGUSER
+              value: keycloak
+            - name: PGDATABASE
+              value: keycloak
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: auth-secrets
+                  key: db-password
+            - name: WALG_GS_PREFIX
+              value: gs://sustenaut-auth-wal/keycloak
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: /var/run/secrets/wal/gcs-key.json
+            - name: WALG_LIBSODIUM_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: auth-wal
+                  key: libsodium-key
+            - name: WALG_LIBSODIUM_KEY_TRANSFORM
+              value: base64
+            # The bucket's account may not replace an object: a segment PostgreSQL archives again
+            # is checked, and skipped if it is already there.
+            - name: WALG_PREVENT_WAL_OVERWRITE
+              value: "true"
+            - name: WALG_COMPRESSION_METHOD
+              value: brotli
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 256Mi
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: wal-key
+              mountPath: /var/run/secrets/wal
+              readOnly: true
+            - name: walg-state
+              mountPath: /walg-state
+      volumes:
+        - name: wal-key
+          secret:
+            secretName: auth-wal
+            items:
+              - key: gcs-key.json
+                path: gcs-key.json
+            defaultMode: 0444
+        - name: walg-state
+          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: local-path
+        resources:
+          requests:
+            storage: 5Gi

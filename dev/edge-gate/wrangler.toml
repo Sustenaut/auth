@@ -1,0 +1,10 @@
+# Local only: dev/prove_team.py runs the gate against the compose stack with wrangler dev, and gives
+# it REALM_URL, CLIENT_ID, CLIENT_SECRET and SESSION_KEY in .dev.vars.
+name = "edge-gate-proof"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+
+[assets]
+directory = "./site"
+binding = "ASSETS"
+run_worker_first = true

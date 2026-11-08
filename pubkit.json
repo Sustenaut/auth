@@ -1,0 +1,29 @@
+{
+  "kind": "service",
+  "ci": {
+    "with": {
+      "shellcheck": "with-secrets *.sh scripts/*.sh backups/pg-backup",
+      "terraform-dir": "infra"
+    }
+  },
+  "protect": {
+    "checks": [
+      "ci / passed",
+      "auth-proofs",
+      "integrations / scan"
+    ],
+    "tags": false
+  },
+  "hosting": {
+    "providers": {
+      "google-cloud": {
+        "type": "google-cloud",
+        "project": "sustenaut",
+        "region": "europe-north1",
+        "cloud_run": {
+          "domain_target": "ghs.googlehosted.com."
+        }
+      }
+    }
+  }
+}
