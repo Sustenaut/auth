@@ -10,31 +10,49 @@ permissions:
   contents: read
 
 jobs:
+  # Whether an earlier run already passed on this commit's tree: then the
+  # jobs it ran are skipped, and nothing here tests less than it did.
+  tested:
+    name: ci
+    uses: Sustenaut/pubkit/.github/workflows/job-tested.yml@74ab84e90fc8b6f691ef4b3d717a9e838d49e4a8 # v0.34.0
+    with: {"workflow": ".github/workflows/pr.yml"}
+    permissions:
+      actions: read
+      contents: read
+
   checks:
     name: ci
-    uses: Sustenaut/pubkit/.github/workflows/job-service-checks.yml@01c2711869ce046ec875edee83e575b955cfbabf # v0.31.3
+    needs: [tested]
+    if: ${{ needs.tested.outputs.tested != 'true' }}
+    uses: Sustenaut/pubkit/.github/workflows/job-service-checks.yml@74ab84e90fc8b6f691ef4b3d717a9e838d49e4a8 # v0.34.0
     with: {"shellcheck": "with-secrets *.sh scripts/*.sh backups/pg-backup"}
 
   terraform:
     name: ci
-    uses: Sustenaut/pubkit/.github/workflows/job-service-terraform.yml@01c2711869ce046ec875edee83e575b955cfbabf # v0.31.3
+    needs: [tested]
+    if: ${{ needs.tested.outputs.tested != 'true' }}
+    uses: Sustenaut/pubkit/.github/workflows/job-service-terraform.yml@74ab84e90fc8b6f691ef4b3d717a9e838d49e4a8 # v0.34.0
     with: {"terraform-dir": "infra"}
 
   sonar:
     name: ci
-    uses: Sustenaut/pubkit/.github/workflows/job-sonar.yml@01c2711869ce046ec875edee83e575b955cfbabf # v0.31.3
+    needs: [tested]
+    if: ${{ needs.tested.outputs.tested != 'true' }}
+    uses: Sustenaut/pubkit/.github/workflows/job-sonar.yml@74ab84e90fc8b6f691ef4b3d717a9e838d49e4a8 # v0.34.0
     with: {"reports": "sonar.python.coverage.reportPaths=*.xml sonar.javascript.lcov.reportPaths=lcov.info"}
     secrets: { SONAR_TOKEN: '${{ secrets.SONAR_TOKEN }}' }
 
   # The one check a ruleset requires: it passes only when every job
-  # above succeeded. None of them is ever skipped for not being asked for.
+  # above succeeded or, where an earlier run already passed on the
+  # commit's tree, was skipped for it. None is skipped for not being asked for.
   passed:
     name: ci / passed
     if: always()
-    needs: [checks, terraform, sonar]
+    needs: [tested, checks, terraform, sonar]
     runs-on: ubuntu-latest
     steps:
       - run: |
           echo "$RESULTS"
-          echo "$RESULTS" | jq -e 'all(.[]; .result == "success")' > /dev/null
-        env: { RESULTS: '${{ toJSON(needs) }}' }
+          echo "$RESULTS" | jq -e --arg tested "$TESTED" '.tested.result == "success"
+            and all(.[]; .result == "success" or (.result == "skipped" and $tested == "true"))' > /dev/null
+        env: { RESULTS: '${{ toJSON(needs) }}', TESTED: '${{ needs.tested.outputs.tested }}' }

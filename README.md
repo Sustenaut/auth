@@ -171,7 +171,7 @@ checkout of this repository with Sustenaut/shared-infra checked out beside it, o
 on the admin tailnet, signed in to `gh` and `gcloud`:
 
 ```sh
-./with-secrets ./pubkit deploy walk --fulfil --server sustenaut --zones ../shared-infra/pubkit.json
+./with-secrets ./pubdeploy walk --fulfil --server sustenaut --zones ../shared-infra/pubkit.json
 ```
 
 It checks every need, prints the plan, and waits for a typed `yes`; then it makes each
@@ -205,8 +205,8 @@ Some needs it only checks, and says what a person does:
 - **The backup drill** (`pg.database`): `./backups/pg-backup drill --wait` ("Backups",
   below), until pg-backup records the drill where the walk can read it.
 
-`./pubkit deploy walk` without `--fulfil` (or `deploy check`) changes nothing, and
-`./pubkit deploy walk --offline` checks only the files. `.github/workflows/deploy-check.yml`
+`./pubdeploy walk` without `--fulfil` (or `pubdeploy check`) changes nothing, and
+`./pubdeploy walk --offline` checks only the files. `.github/workflows/deploy-check.yml`
 walks the deployment every 30 minutes, read-only, with the deploy key, and writes the walk
 to storage's `plane` tenant; it fails when a need is missing, drift or blocked.
 

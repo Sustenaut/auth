@@ -124,12 +124,12 @@ jobs:
       # auth.yml's scopes, so a pull request reads the cache main's deploy writes; the
       # tags are the names compose gives these two images.
       - name: Build the image
-        uses: Sustenaut/pubkit/actions/docker-build@01c2711869ce046ec875edee83e575b955cfbabf # v0.31.3
+        uses: Sustenaut/pubkit/actions/docker-build@74ab84e90fc8b6f691ef4b3d717a9e838d49e4a8 # v0.34.0
         with:
           tags: sustenaut-auth-keycloak:latest
           scope: auth
       - name: Build the realm image
-        uses: Sustenaut/pubkit/actions/docker-build@01c2711869ce046ec875edee83e575b955cfbabf # v0.31.3
+        uses: Sustenaut/pubkit/actions/docker-build@74ab84e90fc8b6f691ef4b3d717a9e838d49e4a8 # v0.34.0
         with:
           tags: sustenaut-auth-realm:latest
           scope: auth-realm
