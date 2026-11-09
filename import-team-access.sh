@@ -22,7 +22,7 @@
 set -euo pipefail
 
 domain=${ACCESS_DOMAIN:-sustenaut.eu}
-controller=${ACCESS_CONTROLLER:?set ACCESS_CONTROLLER to the controller's email address (Bitwarden: access-controller)}
+controller=${ACCESS_CONTROLLER:?"set ACCESS_CONTROLLER to the controller's email address (Bitwarden: access-controller)"}
 declared=${TEAM_SERVICE_ROLES:-opportunity release notebooks plan pub estimate review}
 
 root="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
