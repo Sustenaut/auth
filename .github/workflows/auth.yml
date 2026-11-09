@@ -4,7 +4,7 @@
 # those images, go to the Sustenaut k3s server (shared-infra's infra/hetzner.tf) over SSH, where
 # the deploy key can only run sustenaut-deploy: apply in namespace auth, re-run
 # the realm job, wait for both, once DEPLOY_AUTH is on, which the deploy walk
-# (`./pubkit deploy walk --fulfil`, README.md, "Deploying") sets once every need before it
+# (`./pubdeploy walk --fulfil`, README.md, "Deploying") sets once every need before it
 # is ready. SSH is reachable over Sustenaut's tailnet only, so the job joins it first, as
 # tag:ci (Tailscale's GitHub Action, OAuth client).
 #
@@ -44,12 +44,12 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Build the image
-        uses: Sustenaut/pubkit/actions/docker-build@01c2711869ce046ec875edee83e575b955cfbabf # v0.31.3
+        uses: Sustenaut/pubkit/actions/docker-build@74ab84e90fc8b6f691ef4b3d717a9e838d49e4a8 # v0.34.0
         with:
           tags: ${{ env.IMAGE }}:${{ github.sha }}
           scope: auth
       - name: Build the realm image
-        uses: Sustenaut/pubkit/actions/docker-build@01c2711869ce046ec875edee83e575b955cfbabf # v0.31.3
+        uses: Sustenaut/pubkit/actions/docker-build@74ab84e90fc8b6f691ef4b3d717a9e838d49e4a8 # v0.34.0
         with:
           tags: ${{ env.REALM_IMAGE }}:${{ github.sha }}
           scope: auth-realm
