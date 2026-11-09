@@ -15,7 +15,7 @@ Run each from `~/git/auth` after `git latest`, signed in to Sustenaut's tailnet:
 | To look at, or get back, the database as it was at a moment | `./backups/pg-backup restore --to "2026-11-05 14:32:00+00"` (or `--to latest`) |
 | To put that restore back as the live database, after you've looked at it | `./backups/pg-backup promote auth-restore-<the namespace>` |
 | To delete a scratch restore | `./backups/pg-backup clean auth-restore-<the namespace>` |
-| Once, and again after a rebuild of the server | `./backups/pg-backup setup-secrets` |
+| Once, and again after a rebuild of the server | the deploy walk (`pg.database`, the README's "Deploying"), or `./backups/pg-backup setup-secrets` |
 
 - **drill** exits 0 with `DRILL PASSED … in N s` (under 15 minutes), 2 with `DRILL NOT RUN` when
   there's no base backup that old yet (it says when to try again), and 1 with `DRILL FAILED`.

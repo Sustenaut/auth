@@ -3,8 +3,10 @@
 # (keycloak-config-cli). Then the manifests in k8s/, rendered with
 # those images, go to the Sustenaut k3s server (shared-infra's infra/hetzner.tf) over SSH, where
 # the deploy key can only run sustenaut-deploy: apply in namespace auth, re-run
-# the realm job, wait for both. SSH is reachable over Sustenaut's tailnet only, so
-# the job joins it first, as tag:ci (Tailscale's GitHub Action, OAuth client).
+# the realm job, wait for both, once DEPLOY_AUTH is on, which the deploy walk
+# (`./pubkit deploy walk --fulfil`, README.md, "Deploying") sets once every need before it
+# is ready. SSH is reachable over Sustenaut's tailnet only, so the job joins it first, as
+# tag:ci (Tailscale's GitHub Action, OAuth client).
 #
 # Needs (README.md, "Deploying"):
 #   secret   SUSTENAUT_DEPLOY_SSH_KEY   terraform output -raw sustenaut_deploy_ssh_key (shared-infra's infra)
@@ -13,7 +15,9 @@
 #   variable SUSTENAUT_KNOWN_HOSTS      the server's known_hosts line
 #   variable FAMILY_TENANT_DOMAIN       the domain the family realm lets register for sign-in
 #                                       (beside sustenaut.eu); the realm job reads it from auth-deploy
-# Without SUSTENAUT_SERVER the images are built and pushed, and nothing is deployed.
+#   variable DEPLOY_AUTH                on, set by the deploy walk
+# Without SUSTENAUT_SERVER, or with DEPLOY_AUTH not on, the images are built and pushed, and
+# nothing is deployed.
 name: auth
 
 on:
@@ -40,12 +44,12 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Build the image
-        uses: Sustenaut/pubkit/actions/docker-build@10b9de8d505ab41bf00fdcc6c014c12855ef6a5e # v0.31.1
+        uses: Sustenaut/pubkit/actions/docker-build@01c2711869ce046ec875edee83e575b955cfbabf # v0.31.3
         with:
           tags: ${{ env.IMAGE }}:${{ github.sha }}
           scope: auth
       - name: Build the realm image
-        uses: Sustenaut/pubkit/actions/docker-build@10b9de8d505ab41bf00fdcc6c014c12855ef6a5e # v0.31.1
+        uses: Sustenaut/pubkit/actions/docker-build@01c2711869ce046ec875edee83e575b955cfbabf # v0.31.3
         with:
           tags: ${{ env.REALM_IMAGE }}:${{ github.sha }}
           scope: auth-realm
@@ -96,7 +100,7 @@ jobs:
           grep -q "${IMAGE}:${GITHUB_SHA}" "${RUNNER_TEMP}/auth.yaml"
 
       - name: Join Sustenaut's tailnet
-        if: vars.SUSTENAUT_SERVER != ''
+        if: vars.SUSTENAUT_SERVER != '' && vars.DEPLOY_AUTH == 'on'
         uses: tailscale/github-action@v4
         with:
           oauth-client-id: ${{ secrets.TS_GH_OAUTH_CLIENT_ID }}
@@ -104,7 +108,7 @@ jobs:
           tags: tag:ci
 
       - name: Deploy to the k3s server
-        if: vars.SUSTENAUT_SERVER != ''
+        if: vars.SUSTENAUT_SERVER != '' && vars.DEPLOY_AUTH == 'on'
         env:
           DEPLOY_KEY: ${{ secrets.SUSTENAUT_DEPLOY_SSH_KEY }}
           KNOWN_HOSTS: ${{ vars.SUSTENAUT_KNOWN_HOSTS }}

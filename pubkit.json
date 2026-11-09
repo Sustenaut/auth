@@ -25,5 +25,123 @@
         }
       }
     }
+  },
+  "deploy": {
+    "namespace": "auth",
+    "host": "auth.sustenaut.eu",
+    "workflow": "auth.yml",
+    "gate": "DEPLOY_AUTH",
+    "providers": [
+      {
+        "distribution": "pg-backup",
+        "wheel": "https://github.com/Sustenaut/pg-backup/releases/download/v0.2.1/pg_backup-0.2.1-py3-none-any.whl",
+        "sha256": "1150437f87dfd267526db5f138f66d50e8168e9fbad4c83ff87cb2ad28141c5e"
+      }
+    ],
+    "needs": [
+      {
+        "type": "bitwarden.secret",
+        "name": "auth-db-password",
+        "secret": {
+          "name": "auth-secrets",
+          "key": "db-password"
+        }
+      },
+      {
+        "type": "bitwarden.secret",
+        "name": "auth-admin-password",
+        "secret": {
+          "name": "auth-secrets",
+          "key": "admin-password"
+        }
+      },
+      {
+        "type": "bitwarden.secret",
+        "name": "auth-config-client-secret",
+        "secret": {
+          "name": "auth-secrets",
+          "key": "config-client-secret"
+        }
+      },
+      {
+        "type": "bitwarden.secret",
+        "name": "auth-issuer-keystore",
+        "secret": {
+          "name": "auth-secrets",
+          "key": "issuer-keystore"
+        }
+      },
+      {
+        "type": "bitwarden.secret",
+        "name": "auth-issuer-keystore-password",
+        "secret": {
+          "name": "auth-secrets",
+          "key": "issuer-keystore-password"
+        }
+      },
+      {
+        "type": "bitwarden.secret",
+        "name": "auth-review-client-secret",
+        "secret": {
+          "name": "auth-secrets",
+          "key": "review-client-secret"
+        }
+      },
+      {
+        "type": "bitwarden.secret",
+        "name": "auth-smtp-login",
+        "secret": {
+          "name": "auth-secrets",
+          "key": "mailbox-smtp-login"
+        }
+      },
+      {
+        "type": "bitwarden.secret",
+        "name": "auth-smtp-password",
+        "secret": {
+          "name": "auth-secrets",
+          "key": "mailbox-smtp-password"
+        }
+      },
+      {
+        "type": "gcp.service-account-key",
+        "account": "sustenaut-auth-backup",
+        "project": "sustenaut",
+        "bitwarden": "auth-backup-gcs-key",
+        "secret": {
+          "name": "auth-secrets",
+          "key": "backup-gcs-key",
+          "decode": "base64"
+        }
+      },
+      {
+        "type": "bitwarden.generated",
+        "name": "auth-access-hash-key",
+        "shape": "hex-32",
+        "secret": {
+          "name": "auth-secrets",
+          "key": "access-hash-key"
+        }
+      },
+      {
+        "type": "pg.database"
+      },
+      {
+        "type": "k8s.secret",
+        "name": "auth-wal",
+        "keys": [
+          "gcs-key.json",
+          "libsodium-key"
+        ],
+        "after": [
+          "pg.database:postgres"
+        ]
+      },
+      {
+        "type": "service.health",
+        "path": "/realms/team/.well-known/openid-configuration",
+        "job": "cronjob/backup"
+      }
+    ]
   }
 }

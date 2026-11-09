@@ -70,7 +70,6 @@ clients' redirect URIs), so run it in one checkout at a time.
 | `register-app.py` | Registers a domain's sites for sign-in (the steps below) and declares their service roles (`--role`), standard library only; `--status` says which step is next from the state directory alone, changing nothing (pubkit's deploy walk asks it); `business-plan/opportunity-site/register-client.sh` runs it on the server for sustenaut.eu. |
 | `k8s/` | The app on the k3s server (kustomize): PostgreSQL 16 (Keycloak's only), Keycloak (memory-capped), the ingress for auth.sustenaut.eu, the realm job (re-run on each deploy), the nightly backup CronJob, and `trust-list.env` (which PID-provider list is trusted). |
 | `backups/` | Backups by [Sustenaut/pg-backup](https://github.com/Sustenaut/pg-backup): `pg-backup`, which runs its pinned release, and `pg-backup.json`, auth's settings. Its [README](backups/README.md) says when to run which command. |
-| `push-secrets.sh` | Puts the Secret `auth-secrets` into the cluster from Bitwarden and Terraform; run through `./with-secrets`. |
 | `realm/master.json`, `realm/apply-realm.sh` | Moves the master realm (admin sign-in) to the admin console's address, which is not public; applied in a run of its own after `sustenaut.json`. |
 | `realm/dev-clients.json` | Local only: test clients `test-app` and `test-app-2`, and `review-local` for the review service run locally. |
 | `themes/sustenaut/` | Login theme: wallet buttons only, and our QR page with a message when a presentation is refused. |
@@ -159,11 +158,59 @@ What is public, and what is not:
   ```
 
 Deploys: `.github/workflows/auth.yml` pushes the images to GitHub's container
-registry, joins the tailnet as `tag:ci`, and sends the rendered `k8s/` manifests
-over SSH; the deploy key can only run `sustenaut-deploy`, which applies them in
-namespace `auth`, re-runs the realm job and waits for both.
+registry on each merge to main, and, once `DEPLOY_AUTH` is `on`, joins the tailnet as
+`tag:ci` and sends the rendered `k8s/` manifests over SSH; the deploy key can only run
+`sustenaut-deploy`, which applies them in namespace `auth`, re-runs the realm job and
+waits for both.
 
-Going live, once:
+pubkit.json's `deploy` block lists everything else the deployment needs, and pubkit's
+deploy walk checks each need and makes what it can. `pg.database` is
+[Sustenaut/pg-backup](https://github.com/Sustenaut/pg-backup)'s type: `deploy.providers`
+pins its release, and `./pubkit` runs with it. To bring auth live, or back in step, from a
+checkout of this repository with Sustenaut/shared-infra checked out beside it, on a machine
+on the admin tailnet, signed in to `gh` and `gcloud`:
+
+```sh
+./with-secrets ./pubkit deploy walk --fulfil --server sustenaut --zones ../shared-infra/pubkit.json
+```
+
+It checks every need, prints the plan, and waits for a typed `yes`; then it makes each
+missing need it can, over the admin channel (`ssh root@sustenaut`), and checks it again.
+Every run can run again: what is ready is left alone. In order:
+
+| Need | What the walk does |
+|---|---|
+| the namespace `auth` | the server's `sustenaut-app`, which makes it and its deploy identity |
+| `bitwarden.generated` `auth-access-hash-key` | the key of the team realm's access-state hash: a new one (`hex-32`), written to Bitwarden, when it is missing or misshapen. A new key costs each site one full access check per person, no more |
+| `gcp.service-account-key` `auth-backup-gcs-key` | the nightly dump's key for `sustenaut-auth-backup` (`infra/`'s account): made and written to Bitwarden when it is missing or not one of the account's live keys |
+| the Secret `auth-secrets` | made from the eight values below, the access-hash key and the backup key; Keycloak restarted |
+| `pg.database` | the WAL archive's two keys in Bitwarden and the Secret `auth-wal`, as `./backups/pg-backup setup-secrets` makes them; then PostgreSQL, the archive and the last base backup checked |
+| `DEPLOY_AUTH` and the rollout | the gate on, once everything before it is ready, and `auth.yml` run and waited for |
+| `service.health` | `https://auth.sustenaut.eu/realms/team/.well-known/openid-configuration` answers 200, and the CronJob `backup` (the nightly dump) succeeded in the last 24 hours; when it has not, a Job is run from it |
+
+A new access-hash key, backup key or archive key wants a Bitwarden token that may write:
+the walk asks for it once, at a hidden prompt, and keeps it only in its process.
+
+Some needs it only checks, and says what a person does:
+
+- **The values in Bitwarden** (project Sustenaut): `auth-db-password` and
+  `auth-admin-password` (random, and kept: PostgreSQL and Keycloak hold them),
+  `auth-config-client-secret` (the realm job's client), `auth-issuer-keystore` and
+  `auth-issuer-keystore-password` (from `uv run issuer-keystore.py`: the values after
+  `SUSTENAUT_ISSUER_KEYSTORE_B64=` and `SUSTENAUT_ISSUER_KEYSTORE_PASSWORD=`),
+  `auth-review-client-secret` (the `review` client's, below), and `auth-smtp-login` and
+  `auth-smtp-password` (the mailbox.org login and app password the family and team realms
+  send their emails with).
+- **The DNS record** for `auth.sustenaut.eu`, in shared-infra's hosting block.
+- **The backup drill** (`pg.database`): `./backups/pg-backup drill --wait` ("Backups",
+  below), until pg-backup records the drill where the walk can read it.
+
+`./pubkit deploy walk` without `--fulfil` (or `deploy check`) changes nothing, and
+`./pubkit deploy walk --offline` checks only the files. `.github/workflows/deploy-check.yml`
+walks the deployment every 30 minutes, read-only, with the deploy key, and writes the walk
+to storage's `plane` tenant; it fails when a need is missing, drift or blocked.
+
+Going live on a new server, once, before the walk:
 
 1. Tailscale (Sustenaut's tailnet, admin console):
    - Access controls: add the tags and rules below, and remove the default rule
@@ -190,16 +237,12 @@ Going live, once:
    }
    ```
 2. Hetzner: a Cloud project "Sustenaut" and a Read & Write API token for it.
-3. Bitwarden, project Sustenaut (`auth-db-password`, `auth-admin-password` and
-   `auth-config-client-secret` are there already):
+3. Bitwarden, project Sustenaut: the values the walk checks (above), and
    - `HCLOUD_TOKEN` (or `hcloud-token`): the Hetzner token;
    - `TS_TF_OAUTH_CLIENT_ID`, `TS_TF_OAUTH_SECRET`: the Terraform OAuth client.
      `shared-infra/infra/tailscale-aliases.json` has ./with-secrets also export them as the
      names the Tailscale provider reads (needs pubkit 0.11.1). Do not also keep a
      `TAILSCALE_API_KEY` in the project: the provider refuses both at once.
-   - `auth-issuer-keystore`, `auth-issuer-keystore-password`: from
-     `uv run issuer-keystore.py` (the values after
-     `SUSTENAUT_ISSUER_KEYSTORE_B64=` and `SUSTENAUT_ISSUER_KEYSTORE_PASSWORD=`).
 4. `terraform -chdir=infra init -upgrade` (new providers: hcloud, tls, tailscale),
    then `./with-secrets terraform -chdir=infra plan` and `apply`.
 5. DNS: the sustenaut.eu zone moves into Sustenaut's Hetzner project, and
@@ -208,25 +251,25 @@ Going live, once:
    them), transfer the zone in the Hetzner console (zone "⋯",
    Transfer to Project, Sustenaut), then `./with-secrets terraform -chdir=infra
    apply` here again: 13 imports of the existing records and the new auth record.
-6. Signed in to Sustenaut's tailnet: `./with-secrets ./push-secrets.sh`.
-7. GitHub, repository settings:
+6. GitHub, repository settings:
    - secrets `SUSTENAUT_DEPLOY_SSH_KEY`
      (`terraform -chdir=infra output -raw sustenaut_deploy_ssh_key | gh secret set SUSTENAUT_DEPLOY_SSH_KEY`),
      `TS_GH_OAUTH_CLIENT_ID` and `TS_GH_OAUTH_SECRET` (the GitHub Actions OAuth client);
    - variables `SUSTENAUT_SERVER` = `sustenaut` and `SUSTENAUT_KNOWN_HOSTS` (the
      `known_hosts` output), and `FAMILY_TENANT_DOMAIN` (the domain the family realm lets
      register for sign-in beside sustenaut.eu; the workflow refuses to render without it).
+     `DEPLOY_AUTH` is the walk's to set.
    Configuration that names people stays out of the code: the family tenant's domain is that
    variable, and the access page's first controller is the Bitwarden secret
    `access-controller` (`ACCESS_CONTROLLER`, for `import-team-access.sh`).
-8. Run the `auth` workflow (or merge). After its first build, make the packages
+7. The walk, above. After the images' first build, make the packages
    `sustenaut-auth` and `sustenaut-auth-realm` public (they hold no
    secrets; the workflow stops before deploying while one isn't, and says which), or
-   the server cannot pull them, and run it again.
+   the server cannot pull them, and run the walk again.
 
 Application clients in the sustenaut realm: `review` (review.sustenaut.eu, review-site/;
 its secret is Bitwarden `auth-review-client-secret`, which reaches the cluster
-with push-secrets.sh and the review service through Secret Manager). On the server:
+through the walk's `auth-secrets` and the review service through Secret Manager). On the server:
 `ssh root@sustenaut`, then `k3s kubectl -n auth get pods`.
 
 ### Backups
@@ -499,8 +542,7 @@ Going live, once (after the steps above are done for the sustenaut realm):
    not the alias) and `auth-smtp-password` (the new app password). Other projects'
    SMTP secrets are different app passwords; this repository's `./with-secrets` does not
    read them.
-3. `./with-secrets ./push-secrets.sh`, then run the `auth` workflow (or
-   merge): the image gets the family theme, sign-in step and app registration, and
+3. The deploy walk ("Deploying", above), which puts the two into `auth-secrets` and runs the `auth` workflow: the image gets the family theme, sign-in step and app registration, and
    the realm job creates the realm.
 4. DNSSEC for example.net (and sustenaut.eu): the DNS move must be live first.
 5. Set the Actions variable `FAMILY_TENANT_DOMAIN` to the tenant's domain (the realm job

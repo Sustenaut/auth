@@ -1,7 +1,7 @@
 # The auth app on the Sustenaut k3s server (shared-infra/infra/hetzner.tf), namespace auth.
 # Rendered by .github/workflows/auth.yml with the images it just built
 # (kustomize edit set image) and applied by sustenaut-deploy on the server.
-# The Secret auth-secrets is not here: push-secrets.sh puts it in.
+# The Secret auth-secrets is not here: the deploy walk (pubkit.json's deploy block) puts it in.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: auth

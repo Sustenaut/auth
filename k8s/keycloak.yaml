@@ -88,7 +88,7 @@ spec:
                 secretKeyRef:
                   name: auth-secrets
                   key: config-client-secret
-            # The key of the team realm's access-state hash; push-secrets.sh makes it.
+            # The key of the team realm's access-state hash; the deploy walk makes it.
             # Optional so a deploy before that still starts (the endpoint answers 503).
             - name: SUSTENAUT_ACCESS_HASH_KEY
               valueFrom:

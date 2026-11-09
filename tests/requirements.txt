@@ -1,3 +1,6 @@
 # The functional suite's direct dependencies. Exact pins only; the resolved
 # set with hashes lives in requirements.lock. Regenerate it with `pubkit lock`.
 -r requirements-pubkit.txt
+# pg-backup's pg.database need type, for `pubkit sync --check` in CI: the same release as
+# pubkit.json's deploy.providers. Move them together.
+pg-backup @ https://github.com/Sustenaut/pg-backup/releases/download/v0.2.1/pg_backup-0.2.1-py3-none-any.whl
