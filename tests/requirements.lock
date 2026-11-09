@@ -253,6 +253,8 @@ parse==1.22.4 \
 parse_type==0.6.6 \
     --hash=sha256:3ca79bbe71e170dfccc8ec6c341edfd1c2a0fc1e5cfd18330f93af938de2348c \
     --hash=sha256:513a3784104839770d690e04339a8b4d33439fcd5dd99f2e4580f9fc1097bfb2
+pg-backup @ https://github.com/Sustenaut/pg-backup/releases/download/v0.2.1/pg_backup-0.2.1-py3-none-any.whl \
+    --hash=sha256:1150437f87dfd267526db5f138f66d50e8168e9fbad4c83ff87cb2ad28141c5e
 pluggy==1.7.0 \
     --hash=sha256:7dd7b0d8832ba3cb632c306926ded123429211b83641b35dc5c41ad2d34f9bec \
     --hash=sha256:d1eaa46ebb595891b860ab086b4d09c8588af65ebd4361b8e8f4bb8920b90ba8

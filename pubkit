@@ -20,4 +20,24 @@ if ! command -v uvx >/dev/null 2>&1; then
 fi
 
 cd "$(dirname "$0")"
-exec uvx --from "https://github.com/Sustenaut/pubkit/releases/download/v0.31.3/pubkit-0.31.3-py3-none-any.whl" pubkit "$@"
+# The packages pubkit.json's deploy.providers names, each wheel checked against its sha256.
+with=()
+provider() {
+  local dir="${XDG_CACHE_HOME:-$HOME/.cache}/pubkit/providers/$2" sum
+  local file="$dir/${1##*/}"
+  if [ ! -f "$file" ]; then
+    mkdir -p "$dir"
+    curl -fsSL -o "$file.part" "$1" || { echo "pubkit: could not fetch $1" >&2; exit 1; }
+    mv "$file.part" "$file"
+  fi
+  if command -v sha256sum >/dev/null 2>&1; then sum=$(sha256sum "$file"); else sum=$(shasum -a 256 "$file"); fi
+  if [ "${sum%% *}" != "$2" ]; then
+    rm -f "$file"
+    echo "pubkit: $1 is not the wheel deploy.providers pins (sha256 $2)" >&2
+    exit 1
+  fi
+  with+=(--with "$file")
+}
+provider https://github.com/Sustenaut/pg-backup/releases/download/v0.2.1/pg_backup-0.2.1-py3-none-any.whl 1150437f87dfd267526db5f138f66d50e8168e9fbad4c83ff87cb2ad28141c5e
+
+exec uvx --from "https://github.com/Sustenaut/pubkit/releases/download/v0.31.3/pubkit-0.31.3-py3-none-any.whl" "${with[@]}" pubkit "$@"
