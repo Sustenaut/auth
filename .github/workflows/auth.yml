@@ -40,12 +40,12 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Build the image
-        uses: Sustenaut/pubkit/actions/docker-build@10b9de8d505ab41bf00fdcc6c014c12855ef6a5e # v0.31.1
+        uses: Sustenaut/pubkit/actions/docker-build@01c2711869ce046ec875edee83e575b955cfbabf # v0.31.3
         with:
           tags: ${{ env.IMAGE }}:${{ github.sha }}
           scope: auth
       - name: Build the realm image
-        uses: Sustenaut/pubkit/actions/docker-build@10b9de8d505ab41bf00fdcc6c014c12855ef6a5e # v0.31.1
+        uses: Sustenaut/pubkit/actions/docker-build@01c2711869ce046ec875edee83e575b955cfbabf # v0.31.3
         with:
           tags: ${{ env.REALM_IMAGE }}:${{ github.sha }}
           scope: auth-realm

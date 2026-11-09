@@ -12,17 +12,17 @@ permissions:
 jobs:
   checks:
     name: ci
-    uses: Sustenaut/pubkit/.github/workflows/job-service-checks.yml@10b9de8d505ab41bf00fdcc6c014c12855ef6a5e # v0.31.1
+    uses: Sustenaut/pubkit/.github/workflows/job-service-checks.yml@01c2711869ce046ec875edee83e575b955cfbabf # v0.31.3
     with: {"shellcheck": "with-secrets *.sh scripts/*.sh backups/pg-backup"}
 
   terraform:
     name: ci
-    uses: Sustenaut/pubkit/.github/workflows/job-service-terraform.yml@10b9de8d505ab41bf00fdcc6c014c12855ef6a5e # v0.31.1
+    uses: Sustenaut/pubkit/.github/workflows/job-service-terraform.yml@01c2711869ce046ec875edee83e575b955cfbabf # v0.31.3
     with: {"terraform-dir": "infra"}
 
   sonar:
     name: ci
-    uses: Sustenaut/pubkit/.github/workflows/job-sonar.yml@10b9de8d505ab41bf00fdcc6c014c12855ef6a5e # v0.31.1
+    uses: Sustenaut/pubkit/.github/workflows/job-sonar.yml@01c2711869ce046ec875edee83e575b955cfbabf # v0.31.3
     with: {"reports": "sonar.python.coverage.reportPaths=*.xml sonar.javascript.lcov.reportPaths=lcov.info"}
     secrets: { SONAR_TOKEN: '${{ secrets.SONAR_TOKEN }}' }
 
