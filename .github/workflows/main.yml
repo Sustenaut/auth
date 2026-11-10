@@ -13,7 +13,7 @@ jobs:
   # jobs it ran are skipped, and nothing here tests less than it did.
   tested:
     name: ci
-    uses: Sustenaut/pubkit/.github/workflows/job-tested.yml@74ab84e90fc8b6f691ef4b3d717a9e838d49e4a8 # v0.34.0
+    uses: Sustenaut/pubkit/.github/workflows/job-tested.yml@9a845e9fd424a939f6c95eed9e43c48aebbafb2e # v0.33.0
     with: {"workflow": ".github/workflows/pr.yml"}
     permissions:
       actions: read
@@ -23,21 +23,21 @@ jobs:
     name: ci
     needs: [tested]
     if: ${{ needs.tested.outputs.tested != 'true' }}
-    uses: Sustenaut/pubkit/.github/workflows/job-service-checks.yml@74ab84e90fc8b6f691ef4b3d717a9e838d49e4a8 # v0.34.0
+    uses: Sustenaut/pubkit/.github/workflows/job-service-checks.yml@9a845e9fd424a939f6c95eed9e43c48aebbafb2e # v0.33.0
     with: {"shellcheck": "with-secrets *.sh scripts/*.sh backups/pg-backup"}
 
   terraform:
     name: ci
     needs: [tested]
     if: ${{ needs.tested.outputs.tested != 'true' }}
-    uses: Sustenaut/pubkit/.github/workflows/job-service-terraform.yml@74ab84e90fc8b6f691ef4b3d717a9e838d49e4a8 # v0.34.0
+    uses: Sustenaut/pubkit/.github/workflows/job-service-terraform.yml@9a845e9fd424a939f6c95eed9e43c48aebbafb2e # v0.33.0
     with: {"terraform-dir": "infra"}
 
   sonar:
     name: ci
     needs: [tested]
     if: ${{ !failure() && !cancelled() }}
-    uses: Sustenaut/pubkit/.github/workflows/job-sonar.yml@74ab84e90fc8b6f691ef4b3d717a9e838d49e4a8 # v0.34.0
+    uses: Sustenaut/pubkit/.github/workflows/job-sonar.yml@9a845e9fd424a939f6c95eed9e43c48aebbafb2e # v0.33.0
     permissions:
       actions: read
       contents: read
