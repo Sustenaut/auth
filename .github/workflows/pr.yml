@@ -38,7 +38,7 @@ jobs:
     name: ci
     needs: [tested]
     if: ${{ needs.tested.outputs.tested != 'true' }}
-    uses: Sustenaut/pubkit/.github/workflows/job-service-tests.yml@c502c3d3969ac75ec9a411c284e49f01c5a93558 # v0.37.0
+    uses: Sustenaut/pubkit/.github/workflows/job-service-tests.yml@2ed3af00875f91f6130a6ad7e8841554e0a6b8fc # v0.37.1
     with: {"setup": "python3 -m venv .venv && tests/install-lock .venv/bin/pip", "test": "cd tests && ../.venv/bin/python -m pytest -q steps"}
 
   sonar:
