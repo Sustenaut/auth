@@ -52,6 +52,7 @@ import json
 import os
 import re
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.parse
@@ -87,13 +88,14 @@ def call(method: str, url: str, body: dict | None = None, token: str | None = No
 
 def save(path: Path, value: dict) -> None:
     """Writes the file whole or not at all: a new file beside it, renamed over it."""
-    old = os.umask(0o077)
+    handle, part = tempfile.mkstemp(dir=path.parent, prefix=".part-")  # created 0600
     try:
-        part = path.with_name(path.name + ".part")
-        part.write_text(json.dumps(value, indent=2) + "\n")
+        with os.fdopen(handle, "w") as out:
+            out.write(json.dumps(value, indent=2) + "\n")
         os.replace(part, path)
-    finally:
-        os.umask(old)
+    except BaseException:
+        os.unlink(part)
+        raise
 
 
 def say(message: str) -> None:

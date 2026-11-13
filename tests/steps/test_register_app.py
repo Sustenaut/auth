@@ -81,6 +81,7 @@ def test_a_client_that_does_not_answer_its_token_is_unreadable(monkeypatch, stat
 def test_a_new_registration_token_is_kept_and_none_is_printed(monkeypatch, state, capsys):
     run(monkeypatch, state, Keycloak([f"{SITE}/oauth2/callback"], [f"{SITE}/"], ["site"], rotate=True))
     assert json.loads((state / "client.json").read_text())["registration_access_token"] == "token-2"
-    assert not (state / "client.json.part").exists()
+    assert sorted(p.name for p in state.iterdir()) == ["client.json"]
+    assert oct((state / "client.json").stat().st_mode & 0o777) == "0o600"
     out = capsys.readouterr()
     assert "token" not in out.out and "secret" not in out.out
