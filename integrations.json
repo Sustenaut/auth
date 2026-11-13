@@ -29,7 +29,6 @@
     {
       "plugin": "github.actions-oidc",
       "paths": [
-        ".github/workflows/deploy-check.yml",
         ".github/workflows/terraform.yml"
       ],
       "mode": "required"
