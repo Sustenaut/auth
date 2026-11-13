@@ -12,7 +12,7 @@ locals {
 }
 
 module "backups" {
-  source = "github.com/Sustenaut/pubhost//terraform/backup-bucket?ref=2196c741d3de6c92c6035c42435c6e517c8ba0ce" # v0.1.0
+  source = "github.com/Sustenaut/pubhost//terraform/backup-bucket?ref=055a13fb1d9abdd8a34b3cb19ccc5f8cbd7608b0" # v0.1.1
 
   bucket  = "${local.gcp.project}-auth-backups"
   project = local.gcp.project

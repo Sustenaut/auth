@@ -22,7 +22,7 @@ permissions:
 
 jobs:
   terraform:
-    uses: Sustenaut/pubhost/.github/workflows/terraform.yml@2196c741d3de6c92c6035c42435c6e517c8ba0ce # v0.1.0
+    uses: Sustenaut/pubhost/.github/workflows/terraform.yml@055a13fb1d9abdd8a34b3cb19ccc5f8cbd7608b0 # v0.1.1
     with:
       terraform-dir: infra
       workload-identity-provider: projects/948171295184/locations/global/workloadIdentityPools/github/providers/github-terraform
