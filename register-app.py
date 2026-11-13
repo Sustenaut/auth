@@ -34,6 +34,16 @@ nothing, and says which step is next: {"status": "registered", "client_id"} when
 is there, {"status": "waiting", "record"} when registration.json is, else {"status": "none"};
 exit 0 for each. The other arguments are taken as for a step, so the same command line asks
 (pubkit's deploy walk checks auth.sign-in-client so).
+
+--site-status says whether this site is on the registered client: one line per
+--redirect, --logout and --role, "present" or "missing", on stdout; exit 0 when all are
+present, 1 when one is missing, 2 when the registration cannot be read (no client.json,
+or the client does not answer to its token). It changes nothing a site sees, but it
+reads: the redirect and logout URIs from the client registration endpoint with the
+stored registration access token, which Keycloak may replace with a new one on that
+read, so the new token is written back to client.json, atomically; and the client's
+roles from the roles endpoint, declaring none (an empty list adds nothing). It never
+signs in, and prints no token or secret.
 """
 
 import argparse
@@ -42,6 +52,7 @@ import json
 import os
 import re
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.parse
@@ -76,11 +87,15 @@ def call(method: str, url: str, body: dict | None = None, token: str | None = No
 
 
 def save(path: Path, value: dict) -> None:
-    old = os.umask(0o077)
+    """Writes the file whole or not at all: a new file beside it, renamed over it."""
+    handle, part = tempfile.mkstemp(dir=path.parent, prefix=".part-")  # created 0600
     try:
-        path.write_text(json.dumps(value, indent=2) + "\n")
-    finally:
-        os.umask(old)
+        with os.fdopen(handle, "w") as out:
+            out.write(json.dumps(value, indent=2) + "\n")
+        os.replace(part, path)
+    except BaseException:
+        os.unlink(part)
+        raise
 
 
 def say(message: str) -> None:
@@ -159,6 +174,33 @@ def status(state: Path) -> dict:
     return {"status": "none"}
 
 
+def site_status(state: Path, auth: str, domain: str, redirects: list[str], logouts: list[str],
+                roles: list[str]) -> tuple[int, list[str]]:
+    """Whether each of this site's URIs and roles is on the client: (exit code, lines)."""
+    client_file = state / "client.json"
+    if not client_file.exists():
+        return 2, [f"no registration: {client_file} is not there"]
+    client = json.loads(client_file.read_text())
+    status, rep = call("GET", f"{auth}/clients-registrations/default/{domain}", token=client["registration_access_token"])
+    if status != 200:
+        return 2, [f"the client {client['client_id']} does not answer to its registration token (HTTP {status})"]
+    if rep.get("registrationAccessToken"):  # Keycloak may hand out a new one, and drop the old
+        client["registration_access_token"] = rep["registrationAccessToken"]
+        save(client_file, client)
+    have = rep.get("redirectUris") or []
+    have_logouts = [u for u in ((rep.get("attributes") or {}).get("post.logout.redirect.uris") or "").split("##") if u]
+    lines = [f"redirect {u}: {'present' if u in have else 'missing'}" for u in redirects]
+    lines += [f"logout {u}: {'present' if u in have_logouts else 'missing'}" for u in logouts]
+    if roles:
+        status, answer = call("POST", f"{auth}/app-registration/{domain}/roles", body={"roles": []},
+                              basic=(client["client_id"], client["client_secret"]))
+        if status != 200:
+            return 2, lines + [f"the client's roles could not be read (HTTP {status})"]
+        held = answer.get("roles") or []
+        lines += [f"role {r}: {'present' if r in held else 'missing'}" for r in roles]
+    return (1 if any(line.endswith(": missing") for line in lines) else 0), lines
+
+
 def step(state: Path, auth: str, domain: str, name: str, redirects: list[str], logouts: list[str],
          roles: list[str]) -> tuple[int, dict]:
     client_file, waiting_file = state / "client.json", state / "registration.json"
@@ -228,7 +270,14 @@ def main() -> int:
                         help="a service role this site understands (repeatable; realms with service roles)")
     parser.add_argument("--status", action="store_true",
                         help="say which step is next, from --state-dir alone, and change nothing")
+    parser.add_argument("--site-status", action="store_true",
+                        help="say whether this site's redirect and logout URIs and roles are on the client")
     args = parser.parse_args()
+    if args.site_status:
+        code, lines = site_status(state_dir(args.state_dir), args.auth.rstrip("/"), args.domain,
+                                  args.redirect, args.logout, args.role)
+        print("\n".join(lines))
+        return code
     if args.status:
         print(json.dumps(status(state_dir(args.state_dir))))
         return 0

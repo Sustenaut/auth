@@ -34,9 +34,16 @@ jobs:
     uses: Sustenaut/pubkit/.github/workflows/job-service-terraform.yml@2ed3af00875f91f6130a6ad7e8841554e0a6b8fc # v0.37.1
     with: {"terraform-dir": "infra"}
 
-  sonar:
+  tests:
     name: ci
     needs: [tested]
+    if: ${{ needs.tested.outputs.tested != 'true' }}
+    uses: Sustenaut/pubkit/.github/workflows/job-service-tests.yml@2ed3af00875f91f6130a6ad7e8841554e0a6b8fc # v0.37.1
+    with: {"setup": "python3 -m venv .venv && tests/install-lock .venv/bin/pip", "test": "cd tests && ../.venv/bin/python -m pytest -q steps"}
+
+  sonar:
+    name: ci
+    needs: [tested, tests]
     if: ${{ github.event_name != 'merge_group' && needs.tested.outputs.tested != 'true' }}
     uses: Sustenaut/pubkit/.github/workflows/job-sonar.yml@2ed3af00875f91f6130a6ad7e8841554e0a6b8fc # v0.37.1
     with: {"reports": "sonar.python.coverage.reportPaths=*.xml sonar.javascript.lcov.reportPaths=lcov.info"}
@@ -49,7 +56,7 @@ jobs:
   passed:
     name: ci / passed
     if: always()
-    needs: [tested, checks, terraform, sonar]
+    needs: [tested, checks, terraform, tests, sonar]
     runs-on: ubuntu-latest
     steps:
       - run: |
