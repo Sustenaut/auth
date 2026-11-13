@@ -14,7 +14,7 @@ jobs:
   # jobs it ran are skipped, and nothing here tests less than it did.
   tested:
     name: ci
-    uses: Sustenaut/pubkit/.github/workflows/job-tested.yml@c502c3d3969ac75ec9a411c284e49f01c5a93558 # v0.37.0
+    uses: Sustenaut/pubkit/.github/workflows/job-tested.yml@2ed3af00875f91f6130a6ad7e8841554e0a6b8fc # v0.37.1
     with: {"workflow": ".github/workflows/pr.yml"}
     permissions:
       actions: read
@@ -24,14 +24,14 @@ jobs:
     name: ci
     needs: [tested]
     if: ${{ needs.tested.outputs.tested != 'true' }}
-    uses: Sustenaut/pubkit/.github/workflows/job-service-checks.yml@c502c3d3969ac75ec9a411c284e49f01c5a93558 # v0.37.0
+    uses: Sustenaut/pubkit/.github/workflows/job-service-checks.yml@2ed3af00875f91f6130a6ad7e8841554e0a6b8fc # v0.37.1
     with: {"shellcheck": "with-secrets *.sh scripts/*.sh backups/pg-backup"}
 
   terraform:
     name: ci
     needs: [tested]
     if: ${{ needs.tested.outputs.tested != 'true' }}
-    uses: Sustenaut/pubkit/.github/workflows/job-service-terraform.yml@c502c3d3969ac75ec9a411c284e49f01c5a93558 # v0.37.0
+    uses: Sustenaut/pubkit/.github/workflows/job-service-terraform.yml@2ed3af00875f91f6130a6ad7e8841554e0a6b8fc # v0.37.1
     with: {"terraform-dir": "infra"}
 
   tests:
@@ -45,7 +45,7 @@ jobs:
     name: ci
     needs: [tested, tests]
     if: ${{ github.event_name != 'merge_group' && needs.tested.outputs.tested != 'true' }}
-    uses: Sustenaut/pubkit/.github/workflows/job-sonar.yml@c502c3d3969ac75ec9a411c284e49f01c5a93558 # v0.37.0
+    uses: Sustenaut/pubkit/.github/workflows/job-sonar.yml@2ed3af00875f91f6130a6ad7e8841554e0a6b8fc # v0.37.1
     with: {"reports": "sonar.python.coverage.reportPaths=*.xml sonar.javascript.lcov.reportPaths=lcov.info"}
     secrets: { SONAR_TOKEN: '${{ secrets.SONAR_TOKEN }}' }
 
