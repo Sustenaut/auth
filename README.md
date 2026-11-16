@@ -182,7 +182,7 @@ Every run can run again: what is ready is left alone. In order:
 |---|---|
 | the namespace `auth` | the server's `sustenaut-app`, which makes it and its deploy identity |
 | `bitwarden.generated` `auth-access-hash-key` | the key of the team realm's access-state hash: a new one (`hex-32`), written to Bitwarden, when it is missing or misshapen. A new key costs each site one full access check per person, no more |
-| `gcp.service-account-key` `auth-backup-gcs-key` | the nightly dump's key for `sustenaut-auth-backup` (`infra/`'s account): made and written to Bitwarden when it is missing or not one of the account's live keys |
+| `gcp.workload-identity` `backup` | that the nightly dump's ServiceAccount may act as `sustenaut-auth-backup` (`infra/`'s account) through the `services` Workload Identity pool, so the upload needs no key (`k8s/google-credential.yaml`); the grant is Terraform's (shared-infra's `infra/services-identity.tf`) and only proposed |
 | the Secret `auth-secrets` | made from the eight values below, the access-hash key and the backup key; Keycloak restarted |
 | `pg.database` | the WAL archive's two keys in Bitwarden and the Secret `auth-wal`, as `./backups/pg-backup setup-secrets` makes them; then PostgreSQL, the archive and the last base backup checked |
 | `DEPLOY_AUTH` and the rollout | the gate on, once everything before it is ready, and `auth.yml` run and waited for |
