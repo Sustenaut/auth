@@ -1,6 +1,7 @@
 # Nightly dump of Keycloak's database to the Google Cloud Storage bucket
 # sustenaut-auth-backups (infra/main.tf: in Finland, kept 30 days, written by an
-# account that can only create objects). Restore: README.md.
+# account that can only create objects, reached with no key through Workload Identity:
+# google-credential.yaml). Restore: README.md.
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -17,15 +18,21 @@ spec:
       template:
         spec:
           restartPolicy: Never
+          serviceAccountName: backup
+          automountServiceAccountToken: false
           volumes:
             - name: dump
               emptyDir: {}
-            - name: gcs-key
-              secret:
-                secretName: auth-secrets
-                items:
-                  - key: backup-gcs-key
-                    path: key.json
+            - name: google-token
+              projected:
+                sources:
+                  - serviceAccountToken:
+                      audience: "//iam.googleapis.com/projects/948171295184/locations/global/workloadIdentityPools/services/providers/sustenaut-k3s"
+                      path: token
+                      expirationSeconds: 3600
+            - name: google-credential
+              configMap:
+                name: google-credential
           initContainers:
             - name: dump
               image: docker.io/library/postgres:16.14
@@ -48,14 +55,20 @@ spec:
               command:
                 - sh
                 - -c
-                - >-
-                  gcloud auth activate-service-account --key-file=/key/key.json --quiet &&
-                  gcloud storage cp /dump/*.dump gs://sustenaut-auth-backups/
+                - gcloud storage cp /dump/*.dump gs://sustenaut-auth-backups/
+              env:
+                - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+                  value: /etc/google/credential.json
+                - name: CLOUDSDK_CORE_DISABLE_USAGE_REPORTING
+                  value: "true"
               volumeMounts:
                 - name: dump
                   mountPath: /dump
-                - name: gcs-key
-                  mountPath: /key
+                - name: google-token
+                  mountPath: /var/run/secrets/google
+                  readOnly: true
+                - name: google-credential
+                  mountPath: /etc/google
                   readOnly: true
               resources:
                 limits:

@@ -52,6 +52,7 @@
       "plugin": "google.cloud",
       "paths": [
         "k8s/backup.yaml",
+        "k8s/google-credential.yaml",
         "scripts/go-live-terraform-ci.sh"
       ],
       "mode": "required"

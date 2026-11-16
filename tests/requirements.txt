@@ -3,4 +3,4 @@
 -r requirements-pubkit.txt
 # pg-backup's pg.database need type, for `pubkit sync --check` in CI: the same release as
 # pubkit.json's deploy.providers. Move them together.
-pg-backup @ https://github.com/Sustenaut/pg-backup/releases/download/v0.2.1/pg_backup-0.2.1-py3-none-any.whl
+pg-backup @ https://github.com/Sustenaut/pg-backup/releases/download/v0.3.0/pg_backup-0.3.0-py3-none-any.whl
