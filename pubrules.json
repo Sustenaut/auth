@@ -36,13 +36,13 @@
     "providers": [
       {
         "distribution": "pubdeploy",
-        "wheel": "https://github.com/Sustenaut/pubdeploy/releases/download/v0.4.3/pubdeploy-0.4.3-py3-none-any.whl",
-        "sha256": "acec4f9e914c58ab0ed29aced6096b2b55262384f9dd4865d02fcb8cb3f8b3be"
+        "wheel": "https://github.com/Sustenaut/pubdeploy/releases/download/v0.5.0/pubdeploy-0.5.0-py3-none-any.whl",
+        "sha256": "320d68e081c674457294e6ed3a6c8ab9e2606ca4a2946c252a34021b62dc70cd"
       },
       {
         "distribution": "pubsec",
-        "wheel": "https://github.com/Sustenaut/pubsec/releases/download/v0.2.4/pubsec-0.2.4-py3-none-any.whl",
-        "sha256": "c3a51d4165d7180c9808a16fef927ee8d6e5beb1c070da02619d93b0674c636d"
+        "wheel": "https://github.com/Sustenaut/pubsec/releases/download/v0.3.0/pubsec-0.3.0-py3-none-any.whl",
+        "sha256": "a9036c741e29098cdd04baf64c7873e0ff1dd6e7bde12e9671a3940370724e18"
       },
       {
         "distribution": "pg-backup",

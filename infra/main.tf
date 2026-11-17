@@ -7,7 +7,7 @@
 # Sustenaut/shared-infra's infra/services-identity.tf grants to auth/backup.
 
 locals {
-  gcp = jsondecode(file("${path.module}/../pubkit.json")).hosting.providers["google-cloud"]
+  gcp = jsondecode(file("${path.module}/../pubrules.json")).hosting.providers["google-cloud"]
 }
 
 module "backups" {

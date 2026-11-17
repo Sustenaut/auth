@@ -6,9 +6,9 @@
 # pull request, so plan one from a checkout before merging it (terraform -chdir=infra
 # plan). Nothing runs until the variable TERRAFORM_CI is on. A plan that deletes
 # anything is applied only from a pull request labelled terraform-destroy. Brought
-# up by scripts/go-live-terraform-ci.sh; pubkit's README, "Terraform from CI".
+# up by scripts/go-live-terraform-ci.sh; pubrules's README, "Terraform from CI".
 #
-# Written by hand: `pubkit sync` writes pr.yml and main.yml, not this.
+# Written by hand: `pubrules sync` writes pr.yml and main.yml, not this.
 name: terraform
 
 on:

@@ -67,7 +67,7 @@ clients' redirect URIs), so run it in one checkout at a time.
 | `admin-api.sh` | Sourced by the invite and import scripts and `remove-family.sh`: the admin client's token, and the admin tunnel to the live server only when `KEYCLOAK_ADMIN_URL` is unset and `SUSTENAUT_SERVER=sustenaut` is set (a given address that does not answer is an error; so a local run or a proof never reaches production). |
 | `edge-gate/` | For a static site's Cloudflare Worker, to copy: the same sign-in and check at the edge ([below](#a-worker-gate-for-static-sites)). `dev/edge-gate/` runs it in `dev/prove_team.py`. |
 | `access_check.py` | For a site's server, to copy: asks on each request whether the person's access has changed ([below](#checking-access-on-each-request)). |
-| `register-app.py` | Registers a domain's sites for sign-in (the steps below) and declares their service roles (`--role`), standard library only; `--status` says which step is next from the state directory alone, changing nothing (pubkit's deploy walk asks it); `--site-status` says whether this site's redirect and logout URIs and `--role`s are on the registered client, one line each, exit 0, 1 (one missing) or 2 (unreadable), reading the client with its stored registration token (a token Keycloak replaces is saved back to client.json) and its roles by declaring none; `business-plan/opportunity-site/register-client.sh` runs it on the server for sustenaut.eu. |
+| `register-app.py` | Registers a domain's sites for sign-in (the steps below) and declares their service roles (`--role`), standard library only; `--status` says which step is next from the state directory alone, changing nothing (pubrules's deploy walk asks it); `--site-status` says whether this site's redirect and logout URIs and `--role`s are on the registered client, one line each, exit 0, 1 (one missing) or 2 (unreadable), reading the client with its stored registration token (a token Keycloak replaces is saved back to client.json) and its roles by declaring none; `business-plan/opportunity-site/register-client.sh` runs it on the server for sustenaut.eu. |
 | `k8s/` | The app on the k3s server (kustomize): PostgreSQL 16 (Keycloak's only), Keycloak (memory-capped), the ingress for auth.sustenaut.eu, the realm job (re-run on each deploy), the nightly backup CronJob, and `trust-list.env` (which PID-provider list is trusted). |
 | `backups/` | Backups by [Sustenaut/pg-backup](https://github.com/Sustenaut/pg-backup): `pg-backup`, which runs its pinned release, and `pg-backup.json`, auth's settings. Its [README](backups/README.md) says when to run which command. |
 | `realm/master.json`, `realm/apply-realm.sh` | Moves the master realm (admin sign-in) to the admin console's address, which is not public; applied in a run of its own after `sustenaut.json`. |
@@ -163,15 +163,15 @@ registry on each merge to main, and, once `DEPLOY_AUTH` is `on`, joins the tailn
 `sustenaut-deploy`, which applies them in namespace `auth`, re-runs the realm job and
 waits for both.
 
-pubkit.json's `deploy` block lists everything else the deployment needs, and pubkit's
+pubrules.json's `deploy` block lists everything else the deployment needs, and pubrules's
 deploy walk checks each need and makes what it can. `pg.database` is
 [Sustenaut/pg-backup](https://github.com/Sustenaut/pg-backup)'s type: `deploy.providers`
-pins its release, and `./pubkit` runs with it. To bring auth live, or back in step, from a
+pins its release, and `./pubrules` runs with it. To bring auth live, or back in step, from a
 checkout of this repository with Sustenaut/shared-infra checked out beside it, on a machine
 on the admin tailnet, signed in to `gh` and `gcloud`:
 
 ```sh
-./with-secrets ./pubdeploy walk --fulfil --server sustenaut --zones ../shared-infra/pubkit.json
+./with-secrets ./pubdeploy walk --fulfil --server sustenaut --zones ../shared-infra/pubrules.json
 ```
 
 It checks every need, prints the plan, and waits for a typed `yes`; then it makes each
@@ -241,7 +241,7 @@ Going live on a new server, once, before the walk:
    - `HCLOUD_TOKEN` (or `hcloud-token`): the Hetzner token;
    - `TS_TF_OAUTH_CLIENT_ID`, `TS_TF_OAUTH_SECRET`: the Terraform OAuth client.
      `shared-infra/infra/tailscale-aliases.json` has ./with-secrets also export them as the
-     names the Tailscale provider reads (needs pubkit 0.11.1). Do not also keep a
+     names the Tailscale provider reads (needs pubrules 0.11.1). Do not also keep a
      `TAILSCALE_API_KEY` in the project: the provider refuses both at once.
 4. `terraform -chdir=infra init -upgrade` (new providers: hcloud, tls, tailscale),
    then `./with-secrets terraform -chdir=infra plan` and `apply`.
