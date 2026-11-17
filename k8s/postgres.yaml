@@ -7,7 +7,8 @@
 #   database can be restored to any moment in that window (./backups/pg-backup restore --to);
 # - nightly dumps (backup.yaml), kept 30 days, which need neither WAL-G nor this version.
 # The image, the archive's Terraform and the tools are Sustenaut/pg-backup's (backups/README.md).
-# The Secret auth-wal (the bucket's key, WAL-G's encryption key) is `./backups/pg-backup setup-secrets`'s.
+# The bucket is reached with no key, through Workload Identity (wal-google-credential.yaml);
+# the Secret auth-wal (WAL-G's encryption key) is `./backups/pg-backup setup-secrets`'s.
 apiVersion: v1
 kind: Service
 metadata:
@@ -33,6 +34,8 @@ spec:
       labels:
         app: postgres
     spec:
+      serviceAccountName: postgres
+      automountServiceAccountToken: false
       containers:
         - name: postgres
           image: ghcr.io/sustenaut/pg-backup # PostgreSQL 16.14 and WAL-G; its release is in kustomization.yaml
@@ -63,7 +66,7 @@ spec:
             - name: WALG_GS_PREFIX
               value: gs://sustenaut-auth-wal/keycloak
             - name: GOOGLE_APPLICATION_CREDENTIALS
-              value: /var/run/secrets/wal/gcs-key.json
+              value: /etc/wal-google/credential.json
             - name: WALG_LIBSODIUM_KEY
               valueFrom:
                 secretKeyRef:
@@ -92,8 +95,11 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
-            - name: wal-key
-              mountPath: /var/run/secrets/wal
+            - name: google-token
+              mountPath: /var/run/secrets/google
+              readOnly: true
+            - name: wal-google-credential
+              mountPath: /etc/wal-google
               readOnly: true
         # Base backups, nightly, and a line of JSON every 5 minutes on how the archive is doing
         # (pg-backup's walg-loop). It reads the data directory, so it runs as PostgreSQL's user.
@@ -120,7 +126,7 @@ spec:
             - name: WALG_GS_PREFIX
               value: gs://sustenaut-auth-wal/keycloak
             - name: GOOGLE_APPLICATION_CREDENTIALS
-              value: /var/run/secrets/wal/gcs-key.json
+              value: /etc/wal-google/credential.json
             - name: WALG_LIBSODIUM_KEY
               valueFrom:
                 secretKeyRef:
@@ -143,19 +149,25 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
-            - name: wal-key
-              mountPath: /var/run/secrets/wal
+            - name: google-token
+              mountPath: /var/run/secrets/google
+              readOnly: true
+            - name: wal-google-credential
+              mountPath: /etc/wal-google
               readOnly: true
             - name: walg-state
               mountPath: /walg-state
       volumes:
-        - name: wal-key
-          secret:
-            secretName: auth-wal
-            items:
-              - key: gcs-key.json
-                path: gcs-key.json
-            defaultMode: 0444
+        - name: google-token
+          projected:
+            sources:
+              - serviceAccountToken:
+                  audience: "//iam.googleapis.com/projects/948171295184/locations/global/workloadIdentityPools/services/providers/sustenaut-k3s"
+                  path: token
+                  expirationSeconds: 3600
+        - name: wal-google-credential
+          configMap:
+            name: wal-google-credential
         - name: walg-state
           emptyDir: {}
   volumeClaimTemplates:

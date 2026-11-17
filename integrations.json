@@ -53,6 +53,7 @@
       "paths": [
         "k8s/backup.yaml",
         "k8s/google-credential.yaml",
+        "k8s/wal-google-credential.yaml",
         "scripts/go-live-terraform-ci.sh"
       ],
       "mode": "required"

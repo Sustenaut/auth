@@ -24,9 +24,11 @@ Run each from `~/git/auth` after `git latest`, signed in to Sustenaut's tailnet:
 - **promote** runs only at a terminal, after you type `promote <namespace>`. It runs the nightly
   dump job once first, stops Keycloak (sign-in is down for about a minute), and replaces the live
   database in one transaction, so a failure leaves live as it was.
-- **setup-secrets** makes `auth-wal-gcs-key` and `auth-wal-key` in Bitwarden if they aren't there,
-  and puts them in the cluster as the Secret `auth-wal`. **Losing `auth-wal-key` makes the archive
-  unreadable.**
+- **setup-secrets** makes `auth-wal-key` in Bitwarden if it isn't there, and puts it in the cluster
+  as the Secret `auth-wal`, alone. **Losing `auth-wal-key` makes the archive unreadable.** The bucket
+  needs no key: PostgreSQL runs as `postgres`, which acts as `sustenaut-auth-wal` through Workload
+  Identity (`k8s/wal-google-credential.yaml`), and a drill's restore reads as
+  `sustenaut-auth-wal-read`, which can only read.
 
 pg-backup's README says what each does in full. The archive is `gs://sustenaut-auth-wal`: WAL kept
 16 days and base backups 15, so a restore reaches any moment in the last 14 days. The nightly
