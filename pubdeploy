@@ -50,8 +50,8 @@ provider() {
   fetch "$1" "$2" providers deploy.providers
   with+=(--with "$fetched")
 }
-provider https://github.com/Sustenaut/pubsec/releases/download/v0.2.3/pubsec-0.2.3-py3-none-any.whl 4a0b9435ff111565265f330fa3a1642b59562d77b5d1806c1bfecfe83e63b106
-provider https://github.com/Sustenaut/pg-backup/releases/download/v0.3.0/pg_backup-0.3.0-py3-none-any.whl a04868ea3ab8008a673e8c016e4029c9dadd8a899aaf047d50e7021fa8e127b0
+provider https://github.com/Sustenaut/pubsec/releases/download/v0.2.4/pubsec-0.2.4-py3-none-any.whl c3a51d4165d7180c9808a16fef927ee8d6e5beb1c070da02619d93b0674c636d
+provider https://github.com/Sustenaut/pg-backup/releases/download/v0.4.0/pg_backup-0.4.0-py3-none-any.whl cc03bb75b18a11334f84425e5fa9a7c05a92e578625f32ca4805924b8e6b49ee
 
-fetch https://github.com/Sustenaut/pubdeploy/releases/download/v0.4.1/pubdeploy-0.4.1-py3-none-any.whl c9c9b49b44b771c6f15219c186e3646203381c6a30570c0b2568951d3a53deb0 providers deploy.providers
+fetch https://github.com/Sustenaut/pubdeploy/releases/download/v0.4.3/pubdeploy-0.4.3-py3-none-any.whl acec4f9e914c58ab0ed29aced6096b2b55262384f9dd4865d02fcb8cb3f8b3be providers deploy.providers
 exec uvx --from "$fetched" ${with[@]+"${with[@]}"} pubdeploy "$@"

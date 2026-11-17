@@ -7,6 +7,7 @@ kind: Kustomization
 namespace: auth
 resources:
   - service-accounts.yaml
+  - wal-google-credential.yaml
   - google-credential.yaml
   - postgres.yaml
   - keycloak.yaml

@@ -36,18 +36,18 @@
     "providers": [
       {
         "distribution": "pubdeploy",
-        "wheel": "https://github.com/Sustenaut/pubdeploy/releases/download/v0.4.1/pubdeploy-0.4.1-py3-none-any.whl",
-        "sha256": "c9c9b49b44b771c6f15219c186e3646203381c6a30570c0b2568951d3a53deb0"
+        "wheel": "https://github.com/Sustenaut/pubdeploy/releases/download/v0.4.3/pubdeploy-0.4.3-py3-none-any.whl",
+        "sha256": "acec4f9e914c58ab0ed29aced6096b2b55262384f9dd4865d02fcb8cb3f8b3be"
       },
       {
         "distribution": "pubsec",
-        "wheel": "https://github.com/Sustenaut/pubsec/releases/download/v0.2.3/pubsec-0.2.3-py3-none-any.whl",
-        "sha256": "4a0b9435ff111565265f330fa3a1642b59562d77b5d1806c1bfecfe83e63b106"
+        "wheel": "https://github.com/Sustenaut/pubsec/releases/download/v0.2.4/pubsec-0.2.4-py3-none-any.whl",
+        "sha256": "c3a51d4165d7180c9808a16fef927ee8d6e5beb1c070da02619d93b0674c636d"
       },
       {
         "distribution": "pg-backup",
-        "wheel": "https://github.com/Sustenaut/pg-backup/releases/download/v0.3.0/pg_backup-0.3.0-py3-none-any.whl",
-        "sha256": "a04868ea3ab8008a673e8c016e4029c9dadd8a899aaf047d50e7021fa8e127b0"
+        "wheel": "https://github.com/Sustenaut/pg-backup/releases/download/v0.4.0/pg_backup-0.4.0-py3-none-any.whl",
+        "sha256": "cc03bb75b18a11334f84425e5fa9a7c05a92e578625f32ca4805924b8e6b49ee"
       }
     ],
     "needs": [
@@ -139,12 +139,19 @@
         "type": "k8s.secret",
         "name": "auth-wal",
         "keys": [
-          "gcs-key.json",
           "libsodium-key"
         ],
         "after": [
           "pg.database:postgres"
         ]
+      },
+      {
+        "type": "gcp.workload-identity",
+        "account": "sustenaut-auth-wal",
+        "project": "sustenaut",
+        "serviceaccount": "postgres",
+        "pool": "projects/948171295184/locations/global/workloadIdentityPools/services",
+        "granted_in": "Sustenaut/shared-infra's infra/services-identity.tf"
       },
       {
         "type": "service.health",

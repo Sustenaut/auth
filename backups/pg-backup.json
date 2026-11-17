@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/Sustenaut/pg-backup/v0.2.0/src/pg_backup/pg-backup.schema.json",
+  "$schema": "https://raw.githubusercontent.com/Sustenaut/pg-backup/v0.4.0/src/pg_backup/pg-backup.schema.json",
   "server": "sustenaut",
   "namespace": "auth",
   "statefulset": "postgres",
@@ -11,7 +11,9 @@
     "bucket": "sustenaut-auth-wal",
     "prefix": "keycloak",
     "account": "sustenaut-auth-wal@sustenaut.iam.gserviceaccount.com",
-    "gcs_key_secret": "auth-wal-gcs-key",
+    "restore_account": "sustenaut-auth-wal-read@sustenaut.iam.gserviceaccount.com",
+    "serviceaccount": "postgres",
+    "credential": "wal-google-credential",
     "encryption_key_secret": "auth-wal-key"
   },
   "dump": {
