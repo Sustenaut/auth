@@ -28,9 +28,9 @@ module "backups" {
 # so the database can be restored to any moment in the last 14 days. The nightly dumps above
 # stay as a second copy that does not depend on PostgreSQL's version or on WAL-G.
 # Sustenaut/pg-backup's module: the bucket, its add-and-read account (which may delete only
-# its own upload chunks), and deletion by age. backups/pg-backup setup-secrets makes the keys.
+# its own upload chunks), and deletion by age. backups/pg-backup setup-secrets makes the encryption key.
 module "wal" {
-  source = "github.com/Sustenaut/pg-backup//terraform/wal-archive?ref=v0.2.0"
+  source = "github.com/Sustenaut/pg-backup//terraform/wal-archive?ref=v0.4.0"
 
   project              = local.gcp.project
   region               = local.gcp.region
@@ -39,7 +39,10 @@ module "wal" {
   account_id           = "sustenaut-auth-wal"
   account_display_name = "Sustenaut auth WAL archive"
   account_description  = "WAL-G on the Hetzner k3s server: archives Keycloak's write-ahead log and nightly base backups into the auth-wal bucket. Creates and reads; deletes only its own upload chunks."
-  role_id              = "walChunkDelete"
+  # The read-only account a pg-backup drill's restore pod reads the archive as: it can
+  # never write into the live archive (pg-backup.json's wal.restore_account).
+  restore_account_id = "sustenaut-auth-wal-read"
+  role_id            = "walChunkDelete"
 }
 
 # Where these were before the module.
