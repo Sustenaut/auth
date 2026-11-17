@@ -111,7 +111,7 @@
       "reason": "Tests with made-up domains"
     },
     {
-      "path": "edge-gate/gate.test.js",
+      "path": "edge-gate/gate.steps.js",
       "reason": "Tests with made-up domains"
     }
   ],

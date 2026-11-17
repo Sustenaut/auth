@@ -1,9 +1,20 @@
-// The gate against a made-up Keycloak: node --test edge-gate/
+// The gate against a made-up Keycloak: cd edge-gate && npx cucumber-js
 // (dev/prove_team.py runs these, then the gate against a real one under wrangler dev.)
 import assert from "node:assert/strict";
 import { generateKeyPairSync, createSign } from "node:crypto";
-import { test } from "node:test";
+import { After, Then } from "@cucumber/cucumber";
+import { mock as nodeMock } from "node:test";
 import { gate } from "./gate.js";
+
+// What node:test gave each test as `t`: its mocks, restored when the
+// scenario ends, and the cleanups it registers with t.after().
+const cleanups = [];
+const scenarioContext = { mock: nodeMock, after: (fn) => cleanups.push(fn) };
+After("@gate", async function () {
+  while (cleanups.length) await cleanups.pop()();
+  nodeMock.restoreAll();
+});
+
 
 const REALM = "https://auth.example/realms/team";
 const SITE = "https://pub.example";
@@ -81,7 +92,8 @@ function setup(role = "pub") {
   return { time, keycloak, site, env, browser, go, signIn, make, store };
 }
 
-test("signing in: code flow with PKCE and the client secret, back to the page asked for", async () => {
+Then("signing in: code flow with PKCE and the client secret, back to the page asked for", function () {
+  return (async () => {
   const { go, signIn, keycloak, browser } = setup();
   const first = await go("/some/page?x=1");
   assert.equal(first.status, 303);
@@ -103,9 +115,11 @@ test("signing in: code flow with PKCE and the client secret, back to the page as
   assert.equal(shown.status, 200);
   assert.equal(await shown.text(), "the page");
   assert.ok(!session.includes("rt2"), "the refresh token is not readable in the cookie");
+})();
 });
 
-test("the cookie cannot be read or changed", async () => {
+Then("the cookie cannot be read or changed", function () {
+  return (async () => {
   const { go, signIn, browser } = setup();
   await signIn();
   const real = browser.jar["__Host-sustenaut-gate"];
@@ -118,17 +132,21 @@ test("the cookie cannot be read or changed", async () => {
     assert.equal(response.status, 303, forged);
     assert.match(response.headers.get("Location"), /^\/oauth2\/start/);
   }
+})();
 });
 
-test("a cookie made with another key is refused", async () => {
+Then("a cookie made with another key is refused", function () {
+  return (async () => {
   const { go, signIn, browser, env } = setup();
   await signIn();
   env.SESSION_KEY = "z".repeat(40);
   void browser;
   assert.equal((await go("/page")).status, 303);
+})();
 });
 
-test("an unchanged hash asks userinfo nothing, and the hash is fetched once in 2 seconds", async () => {
+Then("an unchanged hash asks userinfo nothing, and the hash is fetched once in 2 seconds", function () {
+  return (async () => {
   const { go, signIn, keycloak, time } = setup();
   await signIn();
   const userinfo = keycloak.count("userinfo");
@@ -137,22 +155,28 @@ test("an unchanged hash asks userinfo nothing, and the hash is fetched once in 2
   for (let i = 0; i < 5; i += 1) assert.equal((await go("/page")).status, 200);
   assert.equal(keycloak.count("userinfo"), userinfo);
   assert.equal(keycloak.count("access-state"), hashes + 1);
+})();
 });
 
-test("the site's secret reaches the hash URL-encoded", async () => {
+Then("the site's secret reaches the hash URL-encoded", function () {
+  return (async () => {
   const { signIn, keycloak } = setup();
   await signIn();
   assert.equal(keycloak.lastBasic, `Basic ${btoa("sustenaut.eu:se%2Fcret")}`);
+})();
 });
 
-test("no requests, no calls: nothing runs by itself", async () => {
+Then("no requests, no calls: nothing runs by itself", function () {
+  return (async () => {
   const { make, keycloak } = setup();
   make();
   await new Promise((resolve) => { setImmediate(resolve); });
   assert.deepEqual(keycloak.calls, []);
+})();
 });
 
-test("the role is required, from userinfo", async () => {
+Then("the role is required, from userinfo", function () {
+  return (async () => {
   const { go, signIn, keycloak, time } = setup();
   keycloak.roles = ["release"];
   await signIn();
@@ -163,9 +187,11 @@ test("the role is required, from userinfo", async () => {
   keycloak.hash = "h2";
   time.now += 3000;
   assert.equal((await go("/page")).status, 200);
+})();
 });
 
-test("a role taken away is refused at the next request, the session going on", async () => {
+Then("a role taken away is refused at the next request, the session going on", function () {
+  return (async () => {
   const { go, signIn, keycloak, time } = setup();
   await signIn();
   assert.equal((await go("/page")).status, 200);
@@ -176,9 +202,11 @@ test("a role taken away is refused at the next request, the session going on", a
   const calls = keycloak.count("userinfo");
   assert.equal((await go("/page")).status, 403);
   assert.equal(keycloak.count("userinfo"), calls, "the new answer is kept in the cookie");
+})();
 });
 
-test("removed from all: refused at the next request, cookie gone", async () => {
+Then("removed from all: refused at the next request, cookie gone", function () {
+  return (async () => {
   const { go, signIn, keycloak, time, browser } = setup();
   await signIn();
   keycloak.alive = false;
@@ -188,9 +216,11 @@ test("removed from all: refused at the next request, cookie gone", async () => {
   assert.equal(gone.status, 303);
   assert.match(gone.headers.get("Location"), /^\/oauth2\/start/);
   assert.equal(browser.jar["__Host-sustenaut-gate"], undefined);
+})();
 });
 
-test("a full check after 5 minutes even with the hash unchanged", async () => {
+Then("a full check after 5 minutes even with the hash unchanged", function () {
+  return (async () => {
   const { go, signIn, keycloak, time } = setup();
   await signIn();
   const calls = keycloak.count("userinfo");
@@ -200,9 +230,11 @@ test("a full check after 5 minutes even with the hash unchanged", async () => {
   time.now += 2_000;
   assert.equal((await go("/page")).status, 200);
   assert.equal(keycloak.count("userinfo"), calls + 1);
+})();
 });
 
-test("Keycloak down: reads go on, changes are refused, an out-of-date session is refused, sign-in waits", async () => {
+Then("Keycloak down: reads go on, changes are refused, an out-of-date session is refused, sign-in waits", function () {
+  return (async () => {
   const { go, signIn, keycloak, time, browser, make } = setup();
   await signIn();
   keycloak.up = false;
@@ -228,25 +260,31 @@ test("Keycloak down: reads go on, changes are refused, an out-of-date session is
   stranger.keycloak.up = false;
   const start = await stranger.go("/page");
   assert.equal(start.status, 303); // the browser is sent to the realm, which is down: sign-in waits
+})();
 });
 
-test("the hash endpoint not set up counts as Keycloak unreachable", async () => {
+Then("the hash endpoint not set up counts as Keycloak unreachable", function () {
+  return (async () => {
   const { go, signIn, keycloak, time } = setup();
   await signIn();
   keycloak.hashStatus = 503;
   time.now += 3000;
   assert.equal((await go("/page")).status, 200);
   assert.equal((await go("/page", { method: "POST" })).status, 503);
+})();
 });
 
-test("an expired session signs in again", async () => {
+Then("an expired session signs in again", function () {
+  return (async () => {
   const { go, signIn, time } = setup();
   await signIn();
   time.now += 8 * 24 * 3600 * 1000;
   assert.equal((await go("/page")).status, 303);
+})();
 });
 
-test("ID tokens: wrong nonce, audience, issuer, signer or date are refused", async () => {
+Then("ID tokens: wrong nonce, audience, issuer, signer or date are refused", function () {
+  return (async () => {
   for (const [what, change] of Object.entries({
     audience: (k) => { k.idClaims = { aud: "other", azp: "other" }; },
     issuer: (k) => { k.idClaims = { iss: "https://evil.example/realms/team" }; },
@@ -260,16 +298,20 @@ test("ID tokens: wrong nonce, audience, issuer, signer or date are refused", asy
     assert.equal(back.status, 400, what);
     assert.equal(browser.jar["__Host-sustenaut-gate"], undefined, what);
   }
+})();
 });
 
-test("a callback without the flow's state signs nobody in", async () => {
+Then("a callback without the flow's state signs nobody in", function () {
+  return (async () => {
   const { go, browser } = setup();
   const response = await go("/oauth2/callback?code=c1&state=guess");
   assert.equal(response.status, 400);
   assert.equal(browser.jar["__Host-sustenaut-gate"], undefined);
+})();
 });
 
-test("no open redirect back from sign-in", async () => {
+Then("no open redirect back from sign-in", function () {
+  return (async () => {
   for (const rd of ["//evil.example/", "https://evil.example/", "/\\evil.example", "evil", "/x\r\nSet-Cookie: a=b"]) {
     const { go, keycloak } = setup();
     const started = await go(`/oauth2/start?rd=${encodeURIComponent(rd)}`);
@@ -278,15 +320,19 @@ test("no open redirect back from sign-in", async () => {
     const back = await go(`/oauth2/callback?code=c1&state=${auth.searchParams.get("state")}`);
     assert.equal(back.headers.get("Location"), "/", rd);
   }
+})();
 });
 
-test("behind the gate nothing may be kept by a shared cache", async () => {
+Then("behind the gate nothing may be kept by a shared cache", function () {
+  return (async () => {
   const { go, signIn } = setup();
   await signIn();
   assert.equal((await go("/page")).headers.get("Cache-Control"), "private, max-age=60");
+})();
 });
 
-test("a site's own headers go on what it serves, and a public mark still becomes private", async () => {
+Then("a site's own headers go on what it serves, and a public mark still becomes private", function () {
+  return (async () => {
   const { go, signIn, make } = setup();
   await signIn();
   const site = make({ headers: (path) => ({ "X-Frame-Options": "DENY", "X-Path": path, "Cache-Control": "public, max-age=9" }) });
@@ -294,9 +340,11 @@ test("a site's own headers go on what it serves, and a public mark still becomes
   assert.equal(response.headers.get("X-Frame-Options"), "DENY");
   assert.equal(response.headers.get("X-Path"), "/page");
   assert.equal(response.headers.get("Cache-Control"), "private, max-age=9");
+})();
 });
 
-test("a site's own handler answers past the check, null means the file, and it never runs before the check", async () => {
+Then("a site's own handler answers past the check, null means the file, and it never runs before the check", function () {
+  return (async () => {
   const { go, signIn, make, keycloak, time } = setup();
   const seen = [];
   const site = make({
@@ -329,9 +377,11 @@ test("a site's own handler answers past the check, null means the file, and it n
   const before = seen.length;
   assert.equal((await go("/own", {}, site)).status, 403);
   assert.equal(seen.length, before, "no role: not called");
+})();
 });
 
-test("fails closed without its settings; only /healthz is open", async () => {
+Then("fails closed without its settings; only \\/healthz is open", function () {
+  return (async () => {
   for (const name of ["REALM_URL", "CLIENT_ID", "CLIENT_SECRET", "SESSION_KEY", "ASSETS"]) {
     const { env, go } = setup();
     delete env[name];
@@ -343,4 +393,5 @@ test("fails closed without its settings; only /healthz is open", async () => {
   env.SESSION_KEY = "k".repeat(40);
   assert.equal((await go("/healthz")).status, 200);
   assert.throws(() => gate({}), /role/);
+})();
 });

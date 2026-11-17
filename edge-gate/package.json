@@ -1,4 +1,10 @@
 {
   "private": true,
-  "type": "module"
+  "type": "module",
+  "devDependencies": {
+    "@cucumber/cucumber": "13.3.0"
+  },
+  "scripts": {
+    "test": "cucumber-js"
+  }
 }

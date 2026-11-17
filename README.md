@@ -692,7 +692,7 @@ kept. A page already open stays on the screen; the next click fails. An unchange
 
 A static team site has no server to run `access_check.py` on, so `edge-gate/gate.js` does the same check in a Cloudflare
 Worker that also serves the site's files (Workers static assets). No dependencies; copy the file into the site. Its
-tests are `node --test edge-gate/gate.test.js`, and `dev/prove_team.py` runs it under `wrangler dev` against the realm.
+tests are its Gherkin scenarios (`cd edge-gate && npx cucumber-js`), and `dev/prove_team.py` runs it under `wrangler dev` against the realm.
 
 ```js
 import { gate } from "./gate.js";
