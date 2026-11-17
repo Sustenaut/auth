@@ -144,7 +144,7 @@ def code_in(page, email: str) -> bool:
 
 
 def status_of(state: Path) -> tuple[int, dict]:
-    """register-app.py --status, with a step's arguments, as pubkit's deploy walk asks it."""
+    """register-app.py --status, with a step's arguments, as pubrules's deploy walk asks it."""
     run = subprocess.run(
         [sys.executable, "-I", str(HERE.parent / "register-app.py"), "--state-dir", str(state), "--auth", REALM,
          "--domain", DOMAIN, "--redirect", CALLBACK, "--status"], capture_output=True, text=True, timeout=30)

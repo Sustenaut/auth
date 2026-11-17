@@ -42,7 +42,7 @@ jobs:
 
       # What the merge would change, new and old name of a rename alike. Root *.md only:
       # themes/ and plugin-patches/ go into the image whole. Nothing else reads these
-      # files: k8s/ is the deploy's, infra/ is Terraform applied from the laptop, the pubkit
+      # files: k8s/ is the deploy's, infra/ is Terraform applied from the laptop, the pubrules
       # and integrations files are ci's, the other workflows are other jobs. A file not
       # listed, or no files at all, runs the proofs.
       - name: Do the proofs need to run?
@@ -57,7 +57,7 @@ jobs:
           while read -r file; do
             case "$file" in
               .github/workflows/auth-proofs.yml) run=true ;;
-              k8s/*|infra/*|pubkit|pubkit.json|integrations.json|.github/dependabot.yml|.github/workflows/*) ;;
+              k8s/*|infra/*|pubrules|pubrules.json|integrations.json|.github/dependabot.yml|.github/workflows/*) ;;
               # The backup scripts and their README run from the laptop against the server; no
               # image, realm, stack or proof uses them. The admin scripts the proofs call stay at
               # the root, so they keep running the proofs.

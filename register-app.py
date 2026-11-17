@@ -33,7 +33,7 @@ Exit 0 for ok/registered, 3 for waiting, 1 for anything else.
 nothing, and says which step is next: {"status": "registered", "client_id"} when client.json
 is there, {"status": "waiting", "record"} when registration.json is, else {"status": "none"};
 exit 0 for each. The other arguments are taken as for a step, so the same command line asks
-(pubkit's deploy walk checks auth.sign-in-client so).
+(pubrules's deploy walk checks auth.sign-in-client so).
 
 --site-status says whether this site is on the registered client: one line per
 --redirect, --logout and --role, "present" or "missing", on stdout; exit 0 when all are
