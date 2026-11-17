@@ -124,13 +124,15 @@
         "granted_in": "Sustenaut/shared-infra's infra/services-identity.tf"
       },
       {
-        "type": "bitwarden.generated",
+        "type": "bitwarden.adopt",
         "name": "auth-access-hash-key",
-        "shape": "hex-32",
         "secret": {
           "name": "auth-secrets",
           "key": "access-hash-key"
-        }
+        },
+        "format": "[0-9a-f]{64}",
+        "shape": "hex-32",
+        "note": "copied from auth-secrets, as hex-32"
       },
       {
         "type": "pg.database"
