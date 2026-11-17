@@ -1040,8 +1040,8 @@ def at_gate(context, method: str = "get"):
 
 
 def the_gate(api: httpx.Client, browser, d_page) -> None:
-    unit = subprocess.run(["node", "--test", str(HERE.parent / "edge-gate" / "gate.test.js")], capture_output=True, text=True, check=False)
-    passed = re.search(r"^# pass (\d+)", unit.stdout, re.M)
+    unit = subprocess.run(["npx", "cucumber-js"], cwd=HERE.parent / "edge-gate", capture_output=True, text=True, check=False)
+    passed = re.search(r"^\d+ scenarios? \((\d+) passed\)", unit.stdout, re.M)
     check("the gate's own tests, against a made-up Keycloak", unit.returncode == 0, f"{passed and passed.group(1)} passed")
     rep = pf.client_rep(api, DOMAIN)
     callback = f"{GATE}/oauth2/callback"

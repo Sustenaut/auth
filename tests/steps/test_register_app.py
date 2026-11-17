@@ -7,6 +7,9 @@ import json
 from pathlib import Path
 
 import pytest
+from pytest_bdd import scenarios, then
+
+scenarios("register-app.feature")
 
 ROOT = Path(__file__).resolve().parents[2]
 SPEC = importlib.util.spec_from_file_location("register_app", ROOT / "register-app.py")
@@ -52,33 +55,39 @@ def run(monkeypatch, state, keycloak):
     return app.site_status(state, AUTH, DOMAIN, [f"{SITE}/oauth2/callback"], [f"{SITE}/"], ["site"])
 
 
-def test_a_site_whose_uris_and_role_are_on_the_client_is_present(monkeypatch, state):
+@then("a site whose uris and role are on the client is present")
+def a_site_whose_uris_and_role_are_on_the_client_is_present(monkeypatch, state):
     code, lines = run(monkeypatch, state, Keycloak([f"{SITE}/oauth2/callback"], [f"{SITE}/"], ["other", "site"]))
     assert code == 0
     assert lines == [f"redirect {SITE}/oauth2/callback: present", f"logout {SITE}/: present", "role site: present"]
 
 
-def test_a_missing_redirect_is_said(monkeypatch, state):
+@then("a missing redirect is said")
+def a_missing_redirect_is_said(monkeypatch, state):
     code, lines = run(monkeypatch, state, Keycloak(["https://other.example.org/oauth2/callback"], [f"{SITE}/"], ["site"]))
     assert code == 1 and f"redirect {SITE}/oauth2/callback: missing" in lines
 
 
-def test_a_missing_role_is_said(monkeypatch, state):
+@then("a missing role is said")
+def a_missing_role_is_said(monkeypatch, state):
     code, lines = run(monkeypatch, state, Keycloak([f"{SITE}/oauth2/callback"], [f"{SITE}/"], ["other"]))
     assert code == 1 and "role site: missing" in lines
 
 
-def test_no_state_file_is_unreadable(monkeypatch, tmp_path):
+@then("no state file is unreadable")
+def no_state_file_is_unreadable(monkeypatch, tmp_path):
     code, lines = run(monkeypatch, tmp_path, Keycloak([], [], []))
     assert code == 2 and lines[0].startswith("no registration:")
 
 
-def test_a_client_that_does_not_answer_its_token_is_unreadable(monkeypatch, state):
+@then("a client that does not answer its token is unreadable")
+def a_client_that_does_not_answer_its_token_is_unreadable(monkeypatch, state):
     code, lines = run(monkeypatch, state, Keycloak([], [], [], answers=401))
     assert code == 2 and "HTTP 401" in lines[0]
 
 
-def test_a_new_registration_token_is_kept_and_none_is_printed(monkeypatch, state, capsys):
+@then("a new registration token is kept and none is printed")
+def a_new_registration_token_is_kept_and_none_is_printed(monkeypatch, state, capsys):
     run(monkeypatch, state, Keycloak([f"{SITE}/oauth2/callback"], [f"{SITE}/"], ["site"], rotate=True))
     assert json.loads((state / "client.json").read_text())["registration_access_token"] == "token-2"
     assert sorted(p.name for p in state.iterdir()) == ["client.json"]

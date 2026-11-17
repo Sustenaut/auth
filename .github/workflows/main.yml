@@ -38,7 +38,7 @@ jobs:
     needs: [tested]
     if: ${{ needs.tested.outputs.tested != 'true' }}
     uses: Sustenaut/pubrules/.github/workflows/job-service-tests.yml@2fe559caa00c029d9be864faa7f7cc20cd234d0e # v0.43.0
-    with: {"setup": "python3 -m venv .venv && tests/install-lock .venv/bin/pip", "test": "cd tests && ../.venv/bin/python -m pytest -q steps"}
+    with: {"setup": "python3 -m venv .venv && tests/install-lock .venv/bin/pip && (cd edge-gate && npm ci --ignore-scripts)", "test": "(cd tests && ../.venv/bin/python -m pytest -q steps) && (cd edge-gate && npx cucumber-js)"}
 
   sonar:
     name: ci
