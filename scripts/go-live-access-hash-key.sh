@@ -15,14 +15,14 @@
 # Run it again and it writes the same value. Delete this script once the walk is all ready.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-version=$(sed -n 's|.*/releases/download/v\([0-9][0-9.]*\)/pubkit-.*|\1|p' pubkit | head -n 1)
-[[ -n "$version" ]] || { echo "go-live: no pubkit version in ./pubkit" >&2; exit 1; }
+version=$(sed -n 's|.*/releases/download/v\([0-9][0-9.]*\)/pubrules-.*|\1|p' pubrules | head -n 1)
+[[ -n "$version" ]] || { echo "go-live: no pubrules version in ./pubrules" >&2; exit 1; }
 
-exec uvx --from "https://github.com/Sustenaut/pubkit/releases/download/v$version/pubkit-$version-py3-none-any.whl" \
+exec uvx --from "https://github.com/Sustenaut/pubrules/releases/download/v$version/pubrules-$version-py3-none-any.whl" \
   python -c '
 import base64, re, subprocess, sys
-from pubkit.deploy import BitwardenWriter
-from pubkit.github_app import ask_hidden
+from pubrules.deploy import BitwardenWriter
+from pubrules.github_app import ask_hidden
 
 ran = subprocess.run(["ssh", "root@sustenaut", "k3s kubectl -n auth get secret auth-secrets"
                       " -o jsonpath={.data.access-hash-key} --ignore-not-found"],
