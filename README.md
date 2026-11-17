@@ -181,14 +181,14 @@ Every run can run again: what is ready is left alone. In order:
 | Need | What the walk does |
 |---|---|
 | the namespace `auth` | the server's `sustenaut-app`, which makes it and its deploy identity |
-| `bitwarden.generated` `auth-access-hash-key` | the key of the team realm's access-state hash: a new one (`hex-32`), written to Bitwarden, when it is missing or misshapen. A new key costs each site one full access check per person, no more |
+| `bitwarden.adopt` `auth-access-hash-key` | the key of the team realm's access-state hash, kept in Bitwarden: when Bitwarden lacks it, the key `auth-secrets` already holds (64 hex digits) is copied there, so no site loses its access state. When neither has one, the need is blocked: a new key (`bitwarden.generated`, `hex-32`) would cost each site one full access check per person |
 | `gcp.workload-identity` `backup` | that the nightly dump's ServiceAccount may act as `sustenaut-auth-backup` (`infra/`'s account) through the `services` Workload Identity pool, so the upload needs no key (`k8s/google-credential.yaml`); the grant is Terraform's (shared-infra's `infra/services-identity.tf`) and only proposed |
 | the Secret `auth-secrets` | made from the eight values below and the access-hash key; Keycloak restarted |
 | `pg.database` | the WAL archive's two keys in Bitwarden and the Secret `auth-wal`, as `./backups/pg-backup setup-secrets` makes them; then PostgreSQL, the archive and the last base backup checked |
 | `DEPLOY_AUTH` and the rollout | the gate on, once everything before it is ready, and `auth.yml` run and waited for |
 | `service.health` | `https://auth.sustenaut.eu/realms/team/.well-known/openid-configuration` answers 200, and the CronJob `backup` (the nightly dump) succeeded in the last 24 hours; when it has not, a Job is run from it |
 
-A new access-hash key or archive key wants a Bitwarden token that may write:
+Copying the access-hash key, or a new archive key, wants a Bitwarden token that may write:
 the walk asks for it once, at a hidden prompt, and keeps it only in its process.
 
 Some needs it only checks, and says what a person does:

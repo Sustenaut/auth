@@ -258,12 +258,12 @@ pg-backup @ https://github.com/Sustenaut/pg-backup/releases/download/v0.4.0/pg_b
 pluggy==1.7.0 \
     --hash=sha256:7dd7b0d8832ba3cb632c306926ded123429211b83641b35dc5c41ad2d34f9bec \
     --hash=sha256:d1eaa46ebb595891b860ab086b4d09c8588af65ebd4361b8e8f4bb8920b90ba8
-pubdeploy @ https://github.com/Sustenaut/pubdeploy/releases/download/v0.4.3/pubdeploy-0.4.3-py3-none-any.whl \
-    --hash=sha256:acec4f9e914c58ab0ed29aced6096b2b55262384f9dd4865d02fcb8cb3f8b3be
+pubdeploy @ https://github.com/Sustenaut/pubdeploy/releases/download/v0.4.4/pubdeploy-0.4.4-py3-none-any.whl \
+    --hash=sha256:79cfec6197f4e4b632bec05b685e45ecaac896e15a8de6df44d860a53ec800d0
 pubkit @ https://github.com/Sustenaut/pubkit/releases/download/v0.37.1/pubkit-0.37.1-py3-none-any.whl \
     --hash=sha256:49d5888fe5f36448971fcb310839ca151c8f7930626bcb7459cfa6c113b82f71
-pubsec @ https://github.com/Sustenaut/pubsec/releases/download/v0.2.4/pubsec-0.2.4-py3-none-any.whl \
-    --hash=sha256:c3a51d4165d7180c9808a16fef927ee8d6e5beb1c070da02619d93b0674c636d
+pubsec @ https://github.com/Sustenaut/pubsec/releases/download/v0.2.5/pubsec-0.2.5-py3-none-any.whl \
+    --hash=sha256:f2848e19df169c91d504c11b145e54ffa7f837215e18323a9b3554aabcbf3569
 Pygments==2.21.0 \
     --hash=sha256:2363c69b61c4a97c838da3b130dcd6468f4848992b21a82f2a63ec34377137d9 \
     --hash=sha256:610ca751c9bc2492b38eb9a38a7fbc93edbbb2d7182edaf34e66ae493dee5c8c

@@ -43,5 +43,5 @@ fetch() {
   fi
 }
 
-fetch https://github.com/Sustenaut/pubsec/releases/download/v0.2.4/pubsec-0.2.4-py3-none-any.whl c3a51d4165d7180c9808a16fef927ee8d6e5beb1c070da02619d93b0674c636d providers deploy.providers
+fetch https://github.com/Sustenaut/pubsec/releases/download/v0.2.5/pubsec-0.2.5-py3-none-any.whl f2848e19df169c91d504c11b145e54ffa7f837215e18323a9b3554aabcbf3569 providers deploy.providers
 exec uvx --from "$fetched" pubsec "$@"

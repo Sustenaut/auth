@@ -36,13 +36,13 @@
     "providers": [
       {
         "distribution": "pubdeploy",
-        "wheel": "https://github.com/Sustenaut/pubdeploy/releases/download/v0.4.3/pubdeploy-0.4.3-py3-none-any.whl",
-        "sha256": "acec4f9e914c58ab0ed29aced6096b2b55262384f9dd4865d02fcb8cb3f8b3be"
+        "wheel": "https://github.com/Sustenaut/pubdeploy/releases/download/v0.4.4/pubdeploy-0.4.4-py3-none-any.whl",
+        "sha256": "79cfec6197f4e4b632bec05b685e45ecaac896e15a8de6df44d860a53ec800d0"
       },
       {
         "distribution": "pubsec",
-        "wheel": "https://github.com/Sustenaut/pubsec/releases/download/v0.2.4/pubsec-0.2.4-py3-none-any.whl",
-        "sha256": "c3a51d4165d7180c9808a16fef927ee8d6e5beb1c070da02619d93b0674c636d"
+        "wheel": "https://github.com/Sustenaut/pubsec/releases/download/v0.2.5/pubsec-0.2.5-py3-none-any.whl",
+        "sha256": "f2848e19df169c91d504c11b145e54ffa7f837215e18323a9b3554aabcbf3569"
       },
       {
         "distribution": "pg-backup",
@@ -124,13 +124,15 @@
         "granted_in": "Sustenaut/shared-infra's infra/services-identity.tf"
       },
       {
-        "type": "bitwarden.generated",
+        "type": "bitwarden.adopt",
         "name": "auth-access-hash-key",
-        "shape": "hex-32",
         "secret": {
           "name": "auth-secrets",
           "key": "access-hash-key"
-        }
+        },
+        "format": "[0-9a-f]{64}",
+        "shape": "hex-32",
+        "note": "copied from auth-secrets, as hex-32"
       },
       {
         "type": "pg.database"
