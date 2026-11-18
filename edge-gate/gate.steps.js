@@ -1,20 +1,14 @@
 // The gate against a made-up Keycloak: cd edge-gate && npx cucumber-js
 // (dev/prove_team.py runs these, then the gate against a real one under wrangler dev.)
+// pubtest's steps send the requests and check the answers; these build the world and keep the browser.
 import assert from "node:assert/strict";
 import { generateKeyPairSync, createSign } from "node:crypto";
-import { After, Then } from "@cucumber/cucumber";
-import { mock as nodeMock } from "node:test";
+import * as cucumber from "@cucumber/cucumber";
+import { register } from "@sustenaut/pubtest";
+import { Answer } from "@sustenaut/pubtest/http";
 import { gate } from "./gate.js";
 
-// What node:test gave each test as `t`: its mocks, restored when the
-// scenario ends, and the cleanups it registers with t.after().
-const cleanups = [];
-const scenarioContext = { mock: nodeMock, after: (fn) => cleanups.push(fn) };
-After("@gate", async function () {
-  while (cleanups.length) await cleanups.pop()();
-  nodeMock.restoreAll();
-});
-
+const { Given, When, Then } = cucumber;
 
 const REALM = "https://auth.example/realms/team";
 const SITE = "https://pub.example";
@@ -70,7 +64,8 @@ function setup(role = "pub") {
   const env = { REALM_URL: REALM, CLIENT_ID: "sustenaut.eu", CLIENT_SECRET: "se/cret", SESSION_KEY: "k".repeat(40),
     ASSETS: { fetch: async () => new Response("the page", { headers: { "Cache-Control": "public, max-age=60" } }) } };
   const browser = { jar: {} };
-  async function go(path, init = {}, on = site) {
+  const world = { on: site };
+  async function go(path, init = {}, on = world.on) {
     const headers = { Cookie: Object.entries(browser.jar).map(([k, v]) => `${k}=${v}`).join("; "), ...(init.headers || {}) };
     const response = await on.fetch(new Request(`${SITE}${path}`, { ...init, headers }), env);
     for (const line of response.headers.getSetCookie()) {
@@ -82,316 +77,226 @@ function setup(role = "pub") {
     return response;
   }
   async function signIn(path = "/page") {
-    const first = await go(path);
+    const first = await go(path, {}, site);
     assert.equal(first.status, 303);
-    const started = await go(first.headers.get("Location"));
+    return callback(await go(first.headers.get("Location"), {}, site));
+  }
+  async function callback(started) {
     const auth = new URL(started.headers.get("Location"));
     keycloak.nonce = auth.searchParams.get("nonce");
-    return go(`/oauth2/callback?code=c1&state=${auth.searchParams.get("state")}`);
+    return go(`/oauth2/callback?code=c1&state=${auth.searchParams.get("state")}`, {}, site);
   }
-  return { time, keycloak, site, env, browser, go, signIn, make, store };
+  return { time, keycloak, site, env, browser, go, signIn, callback, make, store, world };
 }
 
-Then("signing in: code flow with PKCE and the client secret, back to the page asked for", function () {
-  return (async () => {
-  const { go, signIn, keycloak, browser } = setup();
-  const first = await go("/some/page?x=1");
-  assert.equal(first.status, 303);
-  const started = await go(first.headers.get("Location"));
-  const auth = new URL(started.headers.get("Location"));
-  assert.equal(`${auth.origin}${auth.pathname}`, `${REALM}/protocol/openid-connect/auth`);
-  assert.equal(auth.searchParams.get("code_challenge_method"), "S256");
-  assert.equal(auth.searchParams.get("redirect_uri"), `${SITE}/oauth2/callback`);
-  const line = started.headers.getSetCookie()[0];
-  for (const attribute of ["HttpOnly", "Secure", "SameSite=Lax", "Path=/"]) assert.ok(line.includes(attribute), line);
-  browser.jar = {};
-  const back = await signIn("/some/page?x=1");
-  assert.equal(back.status, 303);
-  assert.equal(back.headers.get("Location"), "/some/page?x=1");
-  assert.ok(keycloak.tokenForm.get("code_verifier"));
-  const session = back.headers.getSetCookie().find((c) => c.startsWith("__Host-sustenaut-gate="));
-  for (const attribute of ["HttpOnly", "Secure", "SameSite=Lax", "Path=/"]) assert.ok(session.includes(attribute), session);
-  const shown = await go("/some/page?x=1");
-  assert.equal(shown.status, 200);
-  assert.equal(await shown.text(), "the page");
-  assert.ok(!session.includes("rt2"), "the refresh token is not readable in the cookie");
-})();
+
+const SESSION = "__Host-sustenaut-gate";
+
+/** A Set-Cookie line's attributes, Max-Age without its number. */
+const attributes = (line) => line.split("; ").slice(1).map((a) => (a.startsWith("Max-Age=") ? "Max-Age" : a));
+
+async function answered(response) {
+  return new Answer(response.status, Object.fromEntries(response.headers.entries()), await response.text());
+}
+
+register(cucumber, {
+  // Each request goes to the site the scenario is on, with the browser's cookies.
+  client: (world) => async (method, path, headers, body) =>
+    answered(await world.gate.go(path, { method, headers, body: body ?? undefined })),
 });
 
-Then("the cookie cannot be read or changed", function () {
-  return (async () => {
-  const { go, signIn, browser } = setup();
-  await signIn();
-  const real = browser.jar["__Host-sustenaut-gate"];
-  const [iv, sealed] = real.split(".");
-  assert.ok(!Buffer.from(sealed, "base64url").toString().includes("anna"));
-  const flipped = `${iv}.${sealed.slice(0, -2)}${sealed.endsWith("A") ? "B" : "A"}A`;
-  for (const forged of [flipped, "garbage", `${iv}.`, b64({ roles: ["pub"], exp: 9e15, hash: "h1", checked: 9e15 })]) {
-    browser.jar["__Host-sustenaut-gate"] = forged;
-    const response = await go("/page");
-    assert.equal(response.status, 303, forged);
-    assert.match(response.headers.get("Location"), /^\/oauth2\/start/);
-  }
-})();
+/** The forged cookies a browser might send in place of the real one. */
+const FORGED = {
+  "its sealed part with a byte changed": (iv, sealed) => `${iv}.${sealed.slice(0, -2)}${sealed.endsWith("A") ? "B" : "A"}A`,
+  garbage: () => "garbage",
+  "its iv alone": (iv) => `${iv}.`,
+  "unsealed claims": () => b64({ roles: ["pub"], exp: 9e15, hash: "h1", checked: 9e15 }),
+};
+
+/** Where a sign-in may be asked to go back to, none of them on the site. */
+const ELSEWHERE = {
+  "another host": "//evil.example/",
+  "an absolute URL": "https://evil.example/",
+  "a host after a backslash": "/\\evil.example",
+  "a relative path": "evil",
+  "a header of its own": "/x\r\nSet-Cookie: a=b",
+};
+
+/** ID tokens Keycloak should not have signed. */
+const WRONG = {
+  audience: (k) => { k.idClaims = { aud: "other", azp: "other" }; },
+  issuer: (k) => { k.idClaims = { iss: "https://evil.example/realms/team" }; },
+  date: (k) => { k.idClaims = { exp: 1000 }; },
+  nonce: (k) => { k.idClaims = { nonce: "wrong" }; },
+  signer: (k) => { k.idKey = other.privateKey; },
+};
+
+Given("a site behind the gate for the role {string}", function (role) {
+  this.gate = setup(role);
 });
 
-Then("a cookie made with another key is refused", function () {
-  return (async () => {
-  const { go, signIn, browser, env } = setup();
-  await signIn();
-  env.SESSION_KEY = "z".repeat(40);
-  void browser;
-  assert.equal((await go("/page")).status, 303);
-})();
+Given("I have signed in at {string}", async function (path) {
+  await this.gate.signIn(path);
 });
 
-Then("an unchanged hash asks userinfo nothing, and the hash is fetched once in 2 seconds", function () {
-  return (async () => {
-  const { go, signIn, keycloak, time } = setup();
-  await signIn();
-  const userinfo = keycloak.count("userinfo");
-  time.now += 3000;
-  const hashes = keycloak.count("access-state");
-  for (let i = 0; i < 5; i += 1) assert.equal((await go("/page")).status, 200);
-  assert.equal(keycloak.count("userinfo"), userinfo);
-  assert.equal(keycloak.count("access-state"), hashes + 1);
-})();
+Given("I have opened {string}", async function (path) {
+  await this.gate.go(path);
 });
 
-Then("the site's secret reaches the hash URL-encoded", function () {
-  return (async () => {
-  const { signIn, keycloak } = setup();
-  await signIn();
-  assert.equal(keycloak.lastBasic, `Basic ${btoa("sustenaut.eu:se%2Fcret")}`);
-})();
+Given("{int} second(s) pass", function (seconds) {
+  this.gate.time.now += seconds * 1000;
 });
 
-Then("no requests, no calls: nothing runs by itself", function () {
-  return (async () => {
-  const { make, keycloak } = setup();
-  make();
-  await new Promise((resolve) => { setImmediate(resolve); });
-  assert.deepEqual(keycloak.calls, []);
-})();
+Given("{int} day(s) pass", function (days) {
+  this.gate.time.now += days * 24 * 3600 * 1000;
 });
 
-Then("the role is required, from userinfo", function () {
-  return (async () => {
-  const { go, signIn, keycloak, time } = setup();
-  keycloak.roles = ["release"];
-  await signIn();
-  const refused = await go("/page");
-  assert.equal(refused.status, 403);
-  assert.ok(!(await refused.text()).includes("the page"));
-  keycloak.roles = ["pub"];
-  keycloak.hash = "h2";
-  time.now += 3000;
-  assert.equal((await go("/page")).status, 200);
-})();
+Given("Keycloak gives the role {string}", function (role) {
+  this.gate.keycloak.roles = [role];
 });
 
-Then("a role taken away is refused at the next request, the session going on", function () {
-  return (async () => {
-  const { go, signIn, keycloak, time } = setup();
-  await signIn();
-  assert.equal((await go("/page")).status, 200);
-  keycloak.roles = ["plan"];
-  keycloak.hash = "h2";
-  time.now += 3000;
-  assert.equal((await go("/page")).status, 403);
-  const calls = keycloak.count("userinfo");
-  assert.equal((await go("/page")).status, 403);
-  assert.equal(keycloak.count("userinfo"), calls, "the new answer is kept in the cookie");
-})();
+Given("Keycloak's access hash changes to {string}", function (hash) {
+  this.gate.keycloak.hash = hash;
 });
 
-Then("removed from all: refused at the next request, cookie gone", function () {
-  return (async () => {
-  const { go, signIn, keycloak, time, browser } = setup();
-  await signIn();
-  keycloak.alive = false;
-  keycloak.hash = "h2";
-  time.now += 3000;
-  const gone = await go("/page");
-  assert.equal(gone.status, 303);
-  assert.match(gone.headers.get("Location"), /^\/oauth2\/start/);
-  assert.equal(browser.jar["__Host-sustenaut-gate"], undefined);
-})();
+Given("Keycloak cannot be reached", function () {
+  this.gate.keycloak.up = false;
 });
 
-Then("a full check after 5 minutes even with the hash unchanged", function () {
-  return (async () => {
-  const { go, signIn, keycloak, time } = setup();
-  await signIn();
-  const calls = keycloak.count("userinfo");
-  time.now += 299_000;
-  assert.equal((await go("/page")).status, 200);
-  assert.equal(keycloak.count("userinfo"), calls);
-  time.now += 2_000;
-  assert.equal((await go("/page")).status, 200);
-  assert.equal(keycloak.count("userinfo"), calls + 1);
-})();
+Given("the account is removed from Keycloak", function () {
+  this.gate.keycloak.alive = false;
 });
 
-Then("Keycloak down: reads go on, changes are refused, an out-of-date session is refused, sign-in waits", function () {
-  return (async () => {
-  const { go, signIn, keycloak, time, browser, make } = setup();
-  await signIn();
-  keycloak.up = false;
-  time.now += 3000;
-  assert.equal((await go("/page")).status, 200);
-  assert.equal((await go("/page", { method: "POST" })).status, 503);
-  // A new isolate knows the last hash from the cache.
-  const fresh = make();
-  assert.equal((await go("/page", {}, fresh)).status, 200);
-
-  keycloak.up = true;
-  const old = browser.jar["__Host-sustenaut-gate"];
-  keycloak.hash = "h2";
-  keycloak.roles = ["pub"];
-  time.now += 3000;
-  assert.equal((await go("/page")).status, 200); // this one moves on to h2
-  keycloak.up = false;
-  time.now += 3000;
-  browser.jar["__Host-sustenaut-gate"] = old; // a session from before the change
-  assert.equal((await go("/page")).status, 503);
-
-  const stranger = setup();
-  stranger.keycloak.up = false;
-  const start = await stranger.go("/page");
-  assert.equal(start.status, 303); // the browser is sent to the realm, which is down: sign-in waits
-})();
+Given("the hash endpoint answers {int}", function (status) {
+  this.gate.keycloak.hashStatus = status;
 });
 
-Then("the hash endpoint not set up counts as Keycloak unreachable", function () {
-  return (async () => {
-  const { go, signIn, keycloak, time } = setup();
-  await signIn();
-  keycloak.hashStatus = 503;
-  time.now += 3000;
-  assert.equal((await go("/page")).status, 200);
-  assert.equal((await go("/page", { method: "POST" })).status, 503);
-})();
+Given("Keycloak's ID tokens have the wrong {word}", function (what) {
+  WRONG[what](this.gate.keycloak);
 });
 
-Then("an expired session signs in again", function () {
-  return (async () => {
-  const { go, signIn, time } = setup();
-  await signIn();
-  time.now += 8 * 24 * 3600 * 1000;
-  assert.equal((await go("/page")).status, 303);
-})();
+Given("Keycloak's calls are counted from here", function () {
+  this.gate.keycloak.calls = [];
 });
 
-Then("ID tokens: wrong nonce, audience, issuer, signer or date are refused", function () {
-  return (async () => {
-  for (const [what, change] of Object.entries({
-    audience: (k) => { k.idClaims = { aud: "other", azp: "other" }; },
-    issuer: (k) => { k.idClaims = { iss: "https://evil.example/realms/team" }; },
-    date: (k) => { k.idClaims = { exp: 1000 }; },
-    nonce: (k) => { k.idClaims = { nonce: "wrong" }; },
-    signer: (k) => { k.idKey = other.privateKey; },
-  })) {
-    const { signIn, keycloak, browser } = setup();
-    change(keycloak);
-    const back = await signIn();
-    assert.equal(back.status, 400, what);
-    assert.equal(browser.jar["__Host-sustenaut-gate"], undefined, what);
-  }
-})();
+Given("the setting {string} is {string}", function (name, value) {
+  this.gate.env[name] = value;
 });
 
-Then("a callback without the flow's state signs nobody in", function () {
-  return (async () => {
-  const { go, browser } = setup();
-  const response = await go("/oauth2/callback?code=c1&state=guess");
-  assert.equal(response.status, 400);
-  assert.equal(browser.jar["__Host-sustenaut-gate"], undefined);
-})();
+Given("the setting {string} is missing", function (name) {
+  delete this.gate.env[name];
 });
 
-Then("no open redirect back from sign-in", function () {
-  return (async () => {
-  for (const rd of ["//evil.example/", "https://evil.example/", "/\\evil.example", "evil", "/x\r\nSet-Cookie: a=b"]) {
-    const { go, keycloak } = setup();
-    const started = await go(`/oauth2/start?rd=${encodeURIComponent(rd)}`);
-    const auth = new URL(started.headers.get("Location"));
-    keycloak.nonce = auth.searchParams.get("nonce");
-    const back = await go(`/oauth2/callback?code=c1&state=${auth.searchParams.get("state")}`);
-    assert.equal(back.headers.get("Location"), "/", rd);
-  }
-})();
+Given(/^the session cookie is (its sealed part with a byte changed|garbage|its iv alone|unsealed claims)$/, function (forged) {
+  const [iv, sealed] = this.gate.browser.jar[SESSION].split(".");
+  this.gate.browser.jar[SESSION] = FORGED[forged](iv, sealed);
 });
 
-Then("behind the gate nothing may be kept by a shared cache", function () {
-  return (async () => {
-  const { go, signIn } = setup();
-  await signIn();
-  assert.equal((await go("/page")).headers.get("Cache-Control"), "private, max-age=60");
-})();
+Given("the session cookie is kept aside", function () {
+  this.aside = this.gate.browser.jar[SESSION];
 });
 
-Then("a site's own headers go on what it serves, and a public mark still becomes private", function () {
-  return (async () => {
-  const { go, signIn, make } = setup();
-  await signIn();
-  const site = make({ headers: (path) => ({ "X-Frame-Options": "DENY", "X-Path": path, "Cache-Control": "public, max-age=9" }) });
-  const response = await go("/page", {}, site);
-  assert.equal(response.headers.get("X-Frame-Options"), "DENY");
-  assert.equal(response.headers.get("X-Path"), "/page");
-  assert.equal(response.headers.get("Cache-Control"), "private, max-age=9");
-})();
+Given("the session cookie kept aside is put back", function () {
+  this.gate.browser.jar[SESSION] = this.aside;
 });
 
-Then("a site's own handler answers past the check, null means the file, and it never runs before the check", function () {
-  return (async () => {
-  const { go, signIn, make, keycloak, time } = setup();
-  const seen = [];
-  const site = make({
+Given("a new isolate of the gate", function () {
+  this.gate.world.on = this.gate.make();
+});
+
+Given("the site sets its own headers", function () {
+  this.gate.world.on = this.gate.make({
+    headers: (path) => ({ "X-Frame-Options": "DENY", "X-Path": path, "Cache-Control": "public, max-age=9" }),
+  });
+});
+
+Given("the site has its own handler for {string}", function (own) {
+  this.seen = [];
+  this.gate.world.on = this.gate.make({
     headers: () => ({ "X-Site": "yes" }),
     handler: (request, env, person) => {
-      seen.push(person);
-      if (new URL(request.url).pathname === "/own") {
+      this.seen.push(person);
+      if (new URL(request.url).pathname === own) {
         return new Response("my page", { headers: { "Cache-Control": "public, max-age=9" } });
       }
       return null;
     },
   });
-  assert.equal((await go("/own", {}, site)).status, 303);
-  assert.deepEqual(seen, [], "signed out: not called");
-  await signIn();
-  const own = await go("/own", {}, site);
-  assert.equal(await own.text(), "my page");
-  assert.equal(own.headers.get("X-Site"), "yes");
-  assert.equal(own.headers.get("Cache-Control"), "private, max-age=9");
-  assert.equal(await (await go("/file", {}, site)).text(), "the page");
-  assert.deepEqual(seen[0], { email: "anna@example.org", roles: ["pub"], reading: false });
-  keycloak.up = false;
-  time.now += 3000;
-  assert.equal((await go("/own", {}, site)).status, 200);
-  assert.equal(seen.at(-1).reading, true, "the handler is told Keycloak can't be reached");
-  keycloak.up = true;
-  keycloak.roles = ["plan"];
-  keycloak.hash = "h2";
-  time.now += 3000;
-  const before = seen.length;
-  assert.equal((await go("/own", {}, site)).status, 403);
-  assert.equal(seen.length, before, "no role: not called");
-})();
 });
 
-Then("fails closed without its settings; only \\/healthz is open", function () {
-  return (async () => {
-  for (const name of ["REALM_URL", "CLIENT_ID", "CLIENT_SECRET", "SESSION_KEY", "ASSETS"]) {
-    const { env, go } = setup();
-    delete env[name];
-    assert.equal((await go("/page")).status, 500, name);
-  }
-  const { env, go } = setup();
-  env.SESSION_KEY = "short";
-  assert.equal((await go("/page")).status, 500);
-  env.SESSION_KEY = "k".repeat(40);
-  assert.equal((await go("/healthz")).status, 200);
-  assert.throws(() => gate({}), /role/);
-})();
+When("the sign-in starts from {string}", function (path) {
+  return this.attempt(async () => {
+    const first = await this.gate.go(path);
+    const started = await this.gate.go(first.headers.get("Location"));
+    const auth = new URL(started.headers.get("Location"));
+    return {
+      authorize: `${auth.origin}${auth.pathname}`,
+      code_challenge_method: auth.searchParams.get("code_challenge_method"),
+      redirect_uri: auth.searchParams.get("redirect_uri"),
+      cookie: attributes(started.headers.getSetCookie()[0]),
+    };
+  });
+});
+
+When("I sign in from {string}", function (path) {
+  return this.attempt(async () => {
+    const back = await this.gate.signIn(path);
+    const session = back.headers.getSetCookie().find((c) => c.startsWith(`${SESSION}=`));
+    this.pubtest.answer = await answered(back);
+    const sealed = this.gate.browser.jar[SESSION]?.split(".")[1];
+    return {
+      "code_verifier sent": Boolean(this.gate.keycloak.tokenForm?.get("code_verifier")),
+      "session cookie": session && attributes(session),
+      "refresh token in the cookie": Boolean(session?.includes("rt2")),
+      "name in the sealed cookie": sealed === undefined ? null : Buffer.from(sealed, "base64url").toString().includes("anna"),
+    };
+  });
+});
+
+When(/^I sign in from the gate's start, asked to go back to (.+)$/, function (where) {
+  return this.attempt(async () => {
+    const started = await this.gate.go(`/oauth2/start?rd=${encodeURIComponent(ELSEWHERE[where])}`);
+    this.pubtest.answer = await answered(await this.gate.callback(started));
+    return this.pubtest.answer;
+  });
+});
+
+When("I GET {string} {int} times", function (path, times) {
+  return this.attempt(async () => {
+    const statuses = [];
+    for (let i = 0; i < times; i += 1) statuses.push((await this.gate.go(path)).status);
+    return statuses;
+  });
+});
+
+When("the gate is made, and left alone", function () {
+  return this.attempt(async () => {
+    this.gate.make();
+    await new Promise((resolve) => { setImmediate(resolve); });
+  });
+});
+
+When("the gate is made with no settings", function () {
+  return this.attempt(() => gate({}));
+});
+
+Then("Keycloak was asked for {string} {int} time(s)", function (kind, times) {
+  assert.equal(this.gate.keycloak.count(kind), times, JSON.stringify(this.gate.keycloak.calls));
+});
+
+Then("Keycloak was asked nothing", function () {
+  assert.deepEqual(this.gate.keycloak.calls, []);
+});
+
+Then("Keycloak was last asked for the hash with the header {string} set to {string}", function (name, value) {
+  assert.equal(name, "Authorization");
+  assert.equal(this.gate.keycloak.lastBasic, value);
+});
+
+Then("the browser keeps no session cookie", function () {
+  assert.equal(this.gate.browser.jar[SESSION], undefined);
+});
+
+Then("the site's handler was told:", function (docstring) {
+  assert.deepEqual(this.seen, JSON.parse(docstring));
 });
