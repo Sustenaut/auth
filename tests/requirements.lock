@@ -258,8 +258,8 @@ pg-backup @ https://github.com/Sustenaut/pg-backup/releases/download/v0.4.0/pg_b
 pluggy==1.7.0 \
     --hash=sha256:7dd7b0d8832ba3cb632c306926ded123429211b83641b35dc5c41ad2d34f9bec \
     --hash=sha256:d1eaa46ebb595891b860ab086b4d09c8588af65ebd4361b8e8f4bb8920b90ba8
-pubdeploy @ https://github.com/Sustenaut/pubdeploy/releases/download/v0.5.0/pubdeploy-0.5.0-py3-none-any.whl \
-    --hash=sha256:320d68e081c674457294e6ed3a6c8ab9e2606ca4a2946c252a34021b62dc70cd
+pubdeploy @ https://github.com/Sustenaut/pubdeploy/releases/download/v0.5.1/pubdeploy-0.5.1-py3-none-any.whl \
+    --hash=sha256:efbbcc3b1741f7a9296a497a68ad4ab7560fd2a6b5371c4e69c3aa5fba854b70
 pubrules @ https://github.com/Sustenaut/pubrules/releases/download/v0.43.0/pubrules-0.43.0-py3-none-any.whl \
     --hash=sha256:5ee0ce4c6a38225a6d7923a7e08e5785d7e6942aff7a08955b136c77b60197ef
 pubsec @ https://github.com/Sustenaut/pubsec/releases/download/v0.3.0/pubsec-0.3.0-py3-none-any.whl \
@@ -278,6 +278,8 @@ pytest-bdd==8.1.0 \
 pytest-xdist==3.8.0 \
     --hash=sha256:202ca578cfeb7370784a8c33d6d05bc6e13b4f25b5053c30a152269fd10f0b88 \
     --hash=sha256:7e578125ec9bc6050861aa93f2d59f1d8d085595d6551c2c90b6f4fad8d3a9f1
+python-statemachine @ https://files.pythonhosted.org/packages/85/d1/d722672f4bfbe1176588157e0f9fa6dd5331a71922bed36aca0e79271535/python_statemachine-3.2.2-py3-none-any.whl \
+    --hash=sha256:141d20e00776815692e424d3df825b1bd7ccaeedc6fda7787ddf249e767e1676
 PyYAML==6.0.3 \
     --hash=sha256:00c4bdeba853cc34e7dd471f16b4114f4162dc03e6b7afcc2128711f0eca823c \
     --hash=sha256:0150219816b6a1fa26fb4699fb7daa9caf09eb1999f3b70fb6e786805e80375a \
