@@ -696,8 +696,14 @@ def the_page(api: httpx.Client, browser, anna_phone) -> tuple:
     act(d_page, role_button(ANNA, "opportunity:site"))
     registrant = user(api, REGISTRANT)
     token = d_page.get_attribute("#access-invite input[name=csrf]", "value")
-    d_context.request.post(f"{ACCESS}/grant", form={"csrf": token, "user": registrant["id"], "role": "sustenaut.eu/opportunity"}, max_redirects=0)
-    check("the registrant cannot be given a service role", roles_of(api, REGISTRANT) == set())
+    refused_grant = d_context.request.post(f"{ACCESS}/grant", form={"csrf": token, "user": registrant["id"], "role": "sustenaut.eu/opportunity"}, max_redirects=0)
+    check("the registrant cannot be given a service role, and the page says why (not a bare 'Nothing changed.')",
+          roles_of(api, REGISTRANT) == set() and "done=registrant" in refused_grant.headers.get("location", ""))
+    mails_before = len(mails_to(REGISTRANT))
+    d_page.check('#access-invite input[value="sustenaut.eu/opportunity"]')
+    said = act_invite(d_page, REGISTRANT)
+    check("inviting the registrant's address is refused with the reason, no role and no email",
+          "is the registrant" in said and roles_of(api, REGISTRANT) == set() and len(mails_to(REGISTRANT)) == mails_before, said)
 
     # A controller cannot lock themself out; another controller can be made and unmade.
     controller = user(api, CONTROLLER)

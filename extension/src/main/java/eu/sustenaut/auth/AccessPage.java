@@ -135,7 +135,10 @@ public class AccessPage implements RealmResourceProvider {
         return change((realm, me, form) -> {
             UserModel user = target(realm, form);
             RoleModel role = role(realm, form);
-            if (user == null || role == null || !user.isEnabled() || isRegistrant(realm, user)) {
+            if (user != null && isRegistrant(realm, user)) {
+                return refused("grant", "registrant", user);
+            }
+            if (user == null || role == null || !user.isEnabled()) {
                 return "notChanged";
             }
             if (!user.hasDirectRole(role)) {
@@ -175,8 +178,11 @@ public class AccessPage implements RealmResourceProvider {
     public Response remove() {
         return change((realm, me, form) -> {
             UserModel user = target(realm, form);
-            if (user == null || isRegistrant(realm, user)) {
+            if (user == null) {
                 return "notChanged";
+            }
+            if (isRegistrant(realm, user)) {
+                return refused("remove", "registrant", user);
             }
             if (user.getId().equals(me.getId())) {
                 return "notYourself";
@@ -246,7 +252,7 @@ public class AccessPage implements RealmResourceProvider {
             }
             UserModel user = session.users().getUserByEmail(realm, email);
             if (user != null && isRegistrant(realm, user)) {
-                return "notChanged";
+                return refused("invite", "registrant", user);
             }
             if (user == null) {
                 user = session.users().addUser(realm, email);
@@ -322,6 +328,12 @@ public class AccessPage implements RealmResourceProvider {
         }
         String done = change.run(realm, auth.getUser(), form);
         return Response.seeOther(URI.create(self(realm) + "?done=" + done)).build();
+    }
+
+    /** A change refused for a reason the page names (never a bare "Nothing changed."), and logged. */
+    private static String refused(String change, String why, UserModel user) {
+        LOG.infof("access page: %s refused for %s: %s", change, user.getId(), why);
+        return why;
     }
 
     private boolean invite(RealmModel realm, UserModel user) {
