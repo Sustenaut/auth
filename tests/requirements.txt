@@ -1,5 +1,7 @@
 # The functional suite's direct dependencies. Exact pins only; the resolved
 # set with hashes lives in requirements.lock. Regenerate it with `pubrules lock`.
+# The steps and plugin the suite runs with; the nightly moves the pin.
+pubtestrules==0.4.0
 -r requirements-pubrules.txt
 # pg-backup's pg.database need type comes with deploy.providers, through
 # requirements-pubrules.txt, so `pubrules bump` moves it and no second pin can disagree.
