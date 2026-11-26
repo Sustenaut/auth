@@ -5,3 +5,6 @@ dev/dns/zones/*/*.zone
 dev/edge-gate/.dev.vars
 dev/edge-gate/.wrangler/
 edge-gate/node_modules/
+
+# The local environment, a directory or a link (pubrel prepare links it into its worktree).
+.venv
